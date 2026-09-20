@@ -83,7 +83,6 @@
   --link:#3fb950;
   --shadow-soft: 0 2px 10px rgba(0,0,0,.45);
 }
-:root[data-theme="dark"] body.emergency-active { background: #1a1113; }
 :root[data-theme="dark"] .chip-aged { color: var(--text-dim); border-color: var(--navy-600); }
 :root[data-theme="dark"] .role-badge { background: rgba(226,181,77,.12); }
 :root[data-theme="dark"] .role-badge.observer { background: rgba(141,182,224,.12); }
@@ -110,10 +109,51 @@ html, body {
   transition: background var(--transition-mode), color var(--transition-mode);
 }
 
+/* ---------- Emergency state ----------
+   Flipped by the alert engine (body.emergency-active). The whole console
+   takes a red cast so nobody can mistake which mode they are in: a hazard
+   stripe texture on the ground, a slow red pulse at the viewport edges,
+   red header wash, red nav accent and panel borders. Panels stay legible. */
 body.emergency-active {
-  background: #F3E9E9;   /* faint red cast on the page ground; panels stay white and legible */
+  background-color: #F1E1E1;
+  background-image: repeating-linear-gradient(135deg, rgba(193,18,31,.07) 0 14px, transparent 14px 28px);
 }
-body.emergency-active .app-header { border-bottom-color: var(--emergency); }
+body.emergency-active::before {
+  content: "";
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 2000;               /* above map controls, below toasts (3000) and modals (4000) */
+  box-shadow: inset 0 0 90px rgba(193,18,31,.28);
+  animation: em-pulse 2.8s ease-in-out infinite;
+}
+@keyframes em-pulse { 50% { box-shadow: inset 0 0 140px rgba(193,18,31,.45); } }
+body.emergency-active .app-header {
+  border-bottom-color: var(--emergency);
+  background: linear-gradient(90deg, rgba(193,18,31,.12), rgba(193,18,31,0) 45%), var(--bg-panel);
+}
+body.emergency-active .main-nav { border-bottom-color: rgba(193,18,31,.35); }
+body.emergency-active .main-nav a.active { color: var(--emergency); border-bottom-color: var(--emergency); }
+body.emergency-active .left-rail, body.emergency-active .right-panel, body.emergency-active .page-content { background: rgba(193,18,31,.04); }
+body.emergency-active .panel { border-color: rgba(193,18,31,.35); }
+body.emergency-active .panel-title { border-bottom-color: rgba(193,18,31,.25); }
+body.emergency-active .map-shell { background: rgba(193,18,31,.04); }
+body.emergency-active .map-status { border-bottom-color: rgba(193,18,31,.35); }
+body.emergency-active .map-legend { border-top-color: rgba(193,18,31,.35); }
+body.emergency-active #emergency-banner {
+  background-image: repeating-linear-gradient(135deg, rgba(0,0,0,.14) 0 12px, transparent 12px 24px);
+}
+body.emergency-active #emergency-banner .eb-tag { animation: em-tag 1.4s ease-in-out infinite; }
+@keyframes em-tag { 50% { background: rgba(255,255,255,.22); } }
+:root[data-theme="dark"] body.emergency-active {
+  background-color: #1b0f11;
+  background-image: repeating-linear-gradient(135deg, rgba(242,107,99,.06) 0 14px, transparent 14px 28px);
+}
+:root[data-theme="dark"] body.emergency-active::before { box-shadow: inset 0 0 100px rgba(193,18,31,.45); }
+:root[data-theme="dark"] body.emergency-active .left-rail, :root[data-theme="dark"] body.emergency-active .right-panel, :root[data-theme="dark"] body.emergency-active .page-content { background: rgba(193,18,31,.06); }
+:root[data-theme="dark"] body.emergency-active .panel { border-color: rgba(242,107,99,.35); }
+@media (prefers-reduced-motion: reduce) {
+  body.emergency-active::before, body.emergency-active #emergency-banner .eb-tag { animation: none; }
+}
 .mono { font-family: var(--font-mono); font-size: 12px; }
 
 .tabular {
