@@ -57,6 +57,29 @@
 
   function isControl() { return getRole() === "control"; }
 
+  // ---------------- Theme ----------------
+  // The page stamps data-theme before first paint (inline script in <head>);
+  // this just flips it and remembers the choice for this browser.
+  const THEME_KEY = "rl_theme";
+  function getTheme() { return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light"; }
+  function setTheme(t) {
+    document.documentElement.setAttribute("data-theme", t);
+    try { localStorage.setItem(THEME_KEY, t); } catch (e) { /* private mode — fine, just not remembered */ }
+    document.querySelectorAll(".theme-toggle").forEach(paintToggle);
+    document.dispatchEvent(new CustomEvent("rl:theme-changed", { detail: { theme: t } }));
+  }
+  function paintToggle(btn) {
+    const dark = getTheme() === "dark";
+    btn.innerHTML = '<span class="ic" aria-hidden="true">' + (dark ? "☀" : "☾") + "</span>" + (dark ? "Light" : "Dark");
+    btn.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
+    btn.setAttribute("aria-pressed", dark ? "true" : "false");
+  }
+  function themeToggleHTML(id) { return '<button type="button" class="theme-toggle" id="' + (id || "theme-toggle") + '"></button>'; }
+  function bindThemeToggle(btn) {
+    if (!btn) return; paintToggle(btn);
+    btn.addEventListener("click", () => setTheme(getTheme() === "dark" ? "light" : "dark"));
+  }
+
   // ---------------- Toasts ----------------
   function ensureToastStack() {
     let stack = document.getElementById("toast-stack");
@@ -216,9 +239,11 @@
       '<div class="header-right">' +
         '<span class="role-badge' + (isCtrl ? '' : ' observer') + '">' + (isCtrl ? 'COORDINATOR — CAN ACT' : 'VIEWER — READ ONLY') + '</span>' +
         '<span class="text-dim" style="font-size:12px;">' + getName() + '</span>' +
+        themeToggleHTML("theme-toggle") +
         '<button id="logout-btn" class="btn-ghost btn-sm">Logout</button>' +
       '</div>';
     document.getElementById("logout-btn").addEventListener("click", logout);
+    bindThemeToggle(document.getElementById("theme-toggle"));
     applyEmergencyUI();
   }
 
@@ -250,6 +275,7 @@
   global.RLAuth = {
     login, logout, getRole, getName, requireRole, isControl,
     toast, denyMutation, openModal, openPhotoViewer, photoFigure, photoStatusChip,
+    getTheme, setTheme, themeToggleHTML, bindThemeToggle,
     isEmergencyActive, setEmergency, getEmergencyStart, fmtElapsed,
     renderHeader, renderNav, ACCOUNTS, NAV
   };

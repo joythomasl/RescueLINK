@@ -30,6 +30,10 @@
 .leaflet-container { font-family: inherit; }
 .leaflet-overlay-pane svg { overflow: visible; }
 .leaflet-control-attribution { font-size: 10px; background: rgba(255,255,255,.75); }
+:root[data-theme="dark"] .leaflet-control-attribution { background: rgba(23,29,34,.8); color: var(--text-dim); }
+:root[data-theme="dark"] .leaflet-control-attribution a { color: var(--blue-accent); }
+/* the drawn offline terrain is painted light once; dim it under the dark theme */
+:root[data-theme="dark"] #leaflet-map.terrain .leaflet-image-layer { filter: brightness(.6) saturate(.8); }
 .map-box.assigning .leaflet-container, .map-box.assigning svg { cursor: crosshair !important; }
 
 /* ---------- Overlays ---------- */
@@ -94,7 +98,9 @@
 .sm-tooltip .t { font-weight: 700; }
 .sm-tooltip .m { font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); margin-top: 2px; }
 
-/* ---------- SVG layers ---------- */
+/* ---------- SVG layers ----------
+   Text on the map sits on imagery with a white halo, so it keeps fixed dark
+   ink in both themes instead of following the page text colour. */
 .sm-sector { fill: #fff; fill-opacity: .06; stroke: #fff; stroke-opacity: .7; stroke-width: 1.5; pointer-events: none; }
 .sm-zone { fill: transparent; stroke: #fff; stroke-opacity: .55; stroke-width: .8; stroke-dasharray: 3 4; cursor: pointer; }
 .sm-zone.MEDIUM { fill: var(--p1); fill-opacity: .10; }
@@ -102,10 +108,10 @@
 .sm-zone.CRITICAL { fill: var(--p0); fill-opacity: .20; }
 .terrain .sm-zone.MEDIUM { fill-opacity: .04; } .terrain .sm-zone.HIGH { fill-opacity: .08; } .terrain .sm-zone.CRITICAL { fill-opacity: .10; }
 .sm-zone:hover, .sm-zone.sel { stroke: var(--gold-500); stroke-width: 1.4; stroke-dasharray: none; }
-.sm-zone-lbl { font: 700 calc(10px * var(--k, 1)) 'Inter', sans-serif; letter-spacing: .1em; fill: var(--text); paint-order: stroke; stroke: #fff; stroke-width: 3px; pointer-events: none; text-transform: uppercase; }
-.sm-place { font: 700 calc(10px * var(--k, 1)) 'Inter', sans-serif; letter-spacing: .1em; fill: var(--text); paint-order: stroke; stroke: #fff; stroke-width: 3px; text-transform: uppercase; }
-.sm-note { font: 500 calc(9px * var(--k, 1)) var(--font-mono); fill: var(--text); paint-order: stroke; stroke: #fff; stroke-width: 3px; }
-.sm-hq { font: 800 calc(10px * var(--k, 1)) 'Inter', sans-serif; letter-spacing: .1em; fill: var(--text); paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+.sm-zone-lbl { font: 700 calc(10px * var(--k, 1)) 'Inter', sans-serif; letter-spacing: .1em; fill: #16211f; paint-order: stroke; stroke: #fff; stroke-width: 3px; pointer-events: none; text-transform: uppercase; }
+.sm-place { font: 700 calc(10px * var(--k, 1)) 'Inter', sans-serif; letter-spacing: .1em; fill: #16211f; paint-order: stroke; stroke: #fff; stroke-width: 3px; text-transform: uppercase; }
+.sm-note { font: 500 calc(9px * var(--k, 1)) var(--font-mono); fill: #16211f; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+.sm-hq { font: 800 calc(10px * var(--k, 1)) 'Inter', sans-serif; letter-spacing: .1em; fill: #16211f; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
 .sm-river { fill: none; stroke: var(--water); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; opacity: .8; }
 .sm-road { fill: none; stroke: var(--text-dim); stroke-width: 1.6; stroke-dasharray: 6 4; opacity: .6; }
 .sm-scar { fill: var(--p0); fill-opacity: .22; stroke: var(--p0); stroke-width: 1.4; stroke-dasharray: 4 3; }
@@ -114,7 +120,7 @@
 .terrain .sm-lora { stroke: var(--p1); }
 .sm-hqlink { stroke: #fff; stroke-opacity: .8; stroke-width: 1.2; stroke-dasharray: 1 4; fill: none; }
 .sm-gap { stroke: #ff5a5a; stroke-width: 2.6; stroke-dasharray: 2 6; fill: none; }
-.sm-gap-lbl { font: 700 calc(11px * var(--k, 1)) var(--font-mono); fill: var(--p0); paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+.sm-gap-lbl { font: 700 calc(11px * var(--k, 1)) var(--font-mono); fill: #C4291F; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
 .sm-link { stroke: #34d399; stroke-linecap: round; cursor: pointer; }
 .sm-link-under { stroke: #fff; stroke-opacity: .55; stroke-linecap: round; pointer-events: none; }
 .terrain .sm-link { stroke: var(--link); }
@@ -123,24 +129,24 @@
 .sm-cluster:hover { fill-opacity: .14; }
 .sm-cluster.none { fill: var(--p0); fill-opacity: .18; stroke: var(--p0); stroke-dasharray: 4 3; }
 .terrain .sm-cluster.none { fill-opacity: .06; }
-.sm-cluster-lbl { font: 700 calc(11px * var(--k, 1)) 'Inter', sans-serif; fill: var(--text); text-anchor: middle; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
-.sm-cluster-sub { font: 500 calc(9.5px * var(--k, 1)) 'Inter', sans-serif; fill: var(--text-dim); text-anchor: middle; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+.sm-cluster-lbl { font: 700 calc(11px * var(--k, 1)) 'Inter', sans-serif; fill: #16211f; text-anchor: middle; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+.sm-cluster-sub { font: 500 calc(9.5px * var(--k, 1)) 'Inter', sans-serif; fill: #3f4f4c; text-anchor: middle; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
 .sm-link-hit { stroke: transparent; stroke-width: 14; cursor: pointer; }
 
 .sm-task { fill: none; stroke: #fff; stroke-width: 1.6; }
 .sm-task-ln { stroke: #fff; stroke-width: 1.2; stroke-dasharray: 3 3; fill: none; }
-.sm-task-lbl { font: 600 calc(10px * var(--k, 1)) var(--font-mono); fill: var(--text); paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+.sm-task-lbl { font: 600 calc(10px * var(--k, 1)) var(--font-mono); fill: #16211f; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
 
 .sm-esp { cursor: pointer; }
 .sm-esp rect { fill: var(--gold-500); stroke: #fff; stroke-width: 2.5; }
 .sm-esp.off rect { fill: var(--text-dim); }
-.sm-esp text { font: 700 calc(10px * var(--k, 1)) var(--font-mono); fill: var(--text); text-anchor: middle; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+.sm-esp text { font: 700 calc(10px * var(--k, 1)) var(--font-mono); fill: #16211f; text-anchor: middle; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
 .sm-esp .dish { fill: none; stroke: var(--text); stroke-width: 1.5; }
 
 .sm-node { cursor: pointer; }
 .sm-node circle.b { stroke: #fff; stroke-width: 2; }
 .sm-node text { font: 800 11px 'Inter', sans-serif; fill: #fff; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
-.sm-node text.tag { font: 700 calc(9px * var(--k, 1)) var(--font-mono); fill: var(--text); dominant-baseline: auto; paint-order: stroke; stroke: #fff; stroke-width: 3px; stroke-linejoin: round; }
+.sm-node text.tag { font: 700 calc(9px * var(--k, 1)) var(--font-mono); fill: #16211f; dominant-baseline: auto; paint-order: stroke; stroke: #fff; stroke-width: 3px; stroke-linejoin: round; }
 .sm-node circle.ring { fill: none; stroke: transparent; }
 .sm-node.sel circle.ring { stroke: var(--gold-500); stroke-width: 2.5; }
 .sm-node.sos circle.pulse {
@@ -149,7 +155,7 @@
   animation: sm-pulse 1.4s ease-out infinite;
 }
 .sm-node .gw { fill: var(--p3); stroke: #fff; stroke-width: 2; }
-.sm-node .q { font: 700 9px var(--font-mono); fill: var(--p1); text-anchor: start; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+.sm-node .q { font: 700 9px var(--font-mono); fill: #B96400; text-anchor: start; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
 @keyframes sm-pulse { 0% { transform: scale(1); opacity: .9; } 100% { transform: scale(2.4); opacity: 0; } }
 
 @media (prefers-reduced-motion: reduce) {

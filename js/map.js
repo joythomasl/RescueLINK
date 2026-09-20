@@ -279,7 +279,7 @@
     g("sm-nodes").innerHTML = nodes.map(n =>
       '<g class="sm-node' + (n === selected ? " sel" : "") + (n.status === "sos" ? " sos" : "") + '" data-n="' + n.id + '" transform="translate(' + n.x.toFixed(1) + " " + n.y.toFixed(1) + ')">' +
       (n.status === "sos" ? '<circle class="pulse" r="12"/>' : "") +
-      '<circle class="ring" r="15"/><circle class="b" r="10.5" fill="' + agencyColor(n.ag) + '"/><text>' + D.AGENCIES[n.ag].short + '</text>' +
+      '<circle class="ring" r="15"/><circle class="b" r="10.5" style="fill:' + agencyColor(n.ag) + '"/><text>' + D.AGENCIES[n.ag].short + '</text>' +
       '<text class="tag" y="24">' + n.id.replace("NDRF-", "N").replace("SDRF-", "S").replace("POL-", "P").replace("FIRE-", "F").replace("VOL-", "V") + '</text>' +
       (n.internet ? '<circle class="gw" cx="9" cy="-9" r="4.5"/>' : "") +
       (n.queue.length ? '<text class="q" x="12" y="-8">+' + n.queue.length + '</text>' : "") + '</g>').join("");

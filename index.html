@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>(function(){var t=null;try{t=localStorage.getItem("rl_theme");}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";}document.documentElement.setAttribute("data-theme",t);})();</script>
 <title>RescueLINK — Sign In</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -99,12 +100,14 @@
     font-size: 11px; color: var(--text-dim); line-height: 1.4;
   }
   .login-brand .crest { background: none; color: var(--gold-500); width: auto; height: auto; }
+  .corner-toggle { position: absolute; top: 16px; right: 16px; z-index: 3; }
 </style>
 </head>
 <body>
 
   <svg class="watermark" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 22c6-9 20-9 26 0" stroke="#B8891A" stroke-width="1.6" stroke-linecap="round"/><circle cx="6" cy="20" r="1.8" fill="#B8891A"/><circle cx="16" cy="15.4" r="1.8" fill="#B8891A"/><circle cx="26" cy="20" r="1.8" fill="#B8891A"/><path d="M6 20l10-4.6L26 20" stroke="#B8891A" stroke-width=".8"/></svg>
 
+  <div class="corner-toggle" id="corner-toggle"></div>
   <div class="login-wrap">
     <div class="login-brand">
       <div class="crest"><svg viewBox="0 0 32 32" width="34" height="34" aria-hidden="true"><path d="M3 22c6-9 20-9 26 0" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="6" cy="20" r="2.4" fill="currentColor"/><circle cx="16" cy="15.4" r="2.4" fill="currentColor"/><circle cx="26" cy="20" r="2.4" fill="currentColor"/><path d="M6 20l10-4.6L26 20" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".6"/></svg></div>
@@ -141,6 +144,9 @@
 
   <script src="js/auth.js"></script>
   <script>
+    document.getElementById("corner-toggle").innerHTML = RLAuth.themeToggleHTML("theme-toggle");
+    RLAuth.bindThemeToggle(document.getElementById("theme-toggle"));
+
     document.querySelectorAll(".demo-row").forEach(row => {
       row.addEventListener("click", () => {
         document.getElementById("email").value = row.dataset.email;

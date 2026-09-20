@@ -26,15 +26,16 @@
   // names, cells, positions — is fictional and is labelled as such.
   const BASE_LAT = 11.4860, BASE_LON = 76.1376;
 
-  // Real-world cues: NDRF wears orange, SDRF blue, police khaki.
-  // Hues validated for colour-vision deficiency on the white surface;
-  // markers also carry the agency initial so identity never rests on colour.
+  // Real-world cues: NDRF wears orange, SDRF blue, police khaki. The colours
+  // are CSS tokens (css/theme.css) so the light and dark palettes — both
+  // validated for colour-vision deficiency — swap together; markers also
+  // carry the agency initial so identity never rests on colour.
   const AGENCIES = {
-    NDRF: { label: "NDRF · 4th Bn Arakkonam", short: "N", color: "#d9581f" },
-    SDRF: { label: "Kerala SDRF",            short: "S", color: "#2a6fd6" },
-    POL:  { label: "Kerala Police · Meppadi PS", short: "P", color: "#8a6d10" },
-    FIRE: { label: "Fire & Rescue · Kalpetta", short: "F", color: "#c93d7a" },
-    VOL:  { label: "Volunteers · Civil Defence", short: "V", color: "#5b4bd6" }
+    NDRF: { label: "NDRF · 4th Bn Arakkonam", short: "N", color: "var(--ag-ndrf)" },
+    SDRF: { label: "Kerala SDRF",            short: "S", color: "var(--ag-sdrf)" },
+    POL:  { label: "Kerala Police · Meppadi PS", short: "P", color: "var(--ag-pol)" },
+    FIRE: { label: "Fire & Rescue · Kalpetta", short: "F", color: "var(--ag-fire)" },
+    VOL:  { label: "Volunteers · Civil Defence", short: "V", color: "var(--ag-vol)" }
   };
 
   // [id, agency, x, y, status, task]

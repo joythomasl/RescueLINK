@@ -52,6 +52,52 @@
   --transition-mode: 400ms ease;
 }
 
+/* ---------- Dark theme ----------
+   Stamped on <html> as data-theme="dark" by the inline script in each page
+   (user choice in localStorage, else the OS preference). The token names
+   keep their light-theme meaning: --navy-900 is still "page ground". */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --navy-900:#0f1417;
+  --navy-800:#171d22;
+  --navy-700:#1f272d;
+  --navy-600:#2f3a42;
+  --gold-500:#C9A030;
+  --gold-400:#D9B24A;
+  --gold-700:#E2B54D;
+  --text:#E6ECEF;
+  --text-dim:#98A6AE;
+  --p0:#F26B63;
+  --p1:#F0A24A;
+  --p2:#D9C24A;
+  --p3:#4FC48F;
+  --emergency:#B5121F;
+  --blue-accent:#6FA3D6;
+  --blue-accent-dark:#8DB6E0;
+  --overlay-dark: 0,0,0;
+  --ag-ndrf:#dd6528;
+  --ag-sdrf:#4a90e2;
+  --ag-pol:#ad8a28;
+  --ag-fire:#d55181;
+  --ag-vol:#9085e9;
+  --link:#3fb950;
+  --shadow-soft: 0 2px 10px rgba(0,0,0,.45);
+}
+:root[data-theme="dark"] body.emergency-active { background: #1a1113; }
+:root[data-theme="dark"] .chip-aged { color: var(--text-dim); border-color: var(--navy-600); }
+:root[data-theme="dark"] .role-badge { background: rgba(226,181,77,.12); }
+:root[data-theme="dark"] .role-badge.observer { background: rgba(141,182,224,.12); }
+
+/* Theme toggle (header + sign-in page) */
+.theme-toggle {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 32px; padding: 0 10px;
+  background: var(--navy-700); border: 1px solid var(--border-color); border-radius: 20px;
+  color: var(--text-dim); font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.theme-toggle:hover { color: var(--text); border-color: var(--text-dim); }
+.theme-toggle .ic { font-size: 14px; line-height: 1; }
+
 * { box-sizing: border-box; }
 
 html, body {

@@ -150,7 +150,7 @@
 .chart-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--text-dim); margin-bottom: 4px; }
 .chart svg { width: 100%; height: auto; display: block; overflow: visible; }
 .chart .ax { stroke: var(--navy-600); stroke-width: 1; }
-.chart .grid { stroke: #E6E9EE; stroke-width: 1; }
+.chart .grid { stroke: var(--navy-600); stroke-opacity: .6; stroke-width: 1; }
 .chart .lbl { font: 500 10px 'Inter', sans-serif; fill: var(--text-dim); }
 .chart .line { fill: none; stroke: var(--ag-sdrf); stroke-width: 2; stroke-linejoin: round; }
 .chart .area { fill: var(--ag-sdrf); fill-opacity: .12; }
@@ -159,7 +159,7 @@
 .chart .flag { stroke: var(--p1); stroke-width: 1; }
 .chart .flag-lbl { font: 700 9.5px 'Inter', sans-serif; letter-spacing: .04em; fill: var(--p1); }
 .chart .cross { stroke: var(--text-dim); stroke-width: 1; stroke-dasharray: 2 2; }
-.chart .dot { fill: var(--ag-sdrf); stroke: #fff; stroke-width: 2; }
+.chart .dot { fill: var(--ag-sdrf); stroke: var(--bg-panel); stroke-width: 2; }
 .chart-cap { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
 
 /* ---------- Forces roster ---------- */
