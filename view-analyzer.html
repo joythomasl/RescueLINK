@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script>(function(){var t=null;try{t=localStorage.getItem("rl_theme");}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";}document.documentElement.setAttribute("data-theme",t);})();</script>
 <title>RescueLINK — Satellite Imagery</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -18,38 +19,61 @@
     <nav class="main-nav" id="main-nav"></nav>
 
     <div class="page-content">
-      <h1 class="page-title">Satellite EO Imagery</h1>
-      <p class="page-subtitle">Before/after change detection on satellite earth-observation tiles — one of the four sensor feeds (with seismic, river gauges and rainfall) behind the alert engine's dynamic layer. Reaches the backend over national telemetry, not local cell towers, so it keeps arriving when the sector is dark.</p>
-      <div class="sim-label">Demo — tiles and analysis values are simulated.</div>
+      <h1 class="page-title">Satellite Imagery</h1>
+      <p class="page-subtitle">Earth-observation imagery is one of the four sensor feeds behind the alert engine's dynamic layer. It reaches the backend over ISRO's ground segment, not local cell towers, so it keeps arriving when the sector is dark. Below: a live year-by-year comparison over the incident sector from Copernicus Sentinel-2, and a real before/after pair from the 2018 Kerala floods.</p>
 
-      <label for="site-select" style="max-width:300px;">Sample site</label>
-      <select id="site-select" style="max-width:300px;">
-        <option value="a">Site A — Kottamala ridge, slide crown (Z4)</option>
-        <option value="b">Site B — Puthur Kadavu river bend (Z6)</option>
-        <option value="c">Site C — Elanad hamlet run-out (Z5)</option>
-      </select>
-
-      <div class="compare-wrap" id="compare-wrap">
-        <img id="img-before" src="assets/sat-site-a-before.svg" alt="Before">
-        <div class="compare-after-clip" id="compare-after-clip">
-          <img id="img-after" src="assets/sat-site-a-after.svg" alt="After">
+      <section class="panel eo-panel">
+        <div class="panel-title">Incident sector · Sentinel-2, year vs year <span class="panel-sub">drag the divider · pan and zoom</span></div>
+        <div class="eo-controls">
+          <label>Before <select id="eo-before" class="sm-input"></select></label>
+          <label>After <select id="eo-after" class="sm-input"></select></label>
+          <span class="eo-sites" id="eo-sites"></span>
         </div>
-        <div class="compare-handle" id="compare-handle"></div>
-        <span class="compare-label before">BEFORE</span>
-        <span class="compare-label after">AFTER</span>
-      </div>
-
-      <div class="panel analysis-panel">
-        <div class="panel-title">Analysis <span class="text-dim" style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;">view only — no annotation or export</span></div>
-        <div class="analysis-stats">
-          <div class="stat-tile"><div class="num tabular" id="an-area">0.00</div><div class="lbl">Change area (km²)</div></div>
-          <div class="stat-tile"><div class="num tabular" id="an-structures">0</div><div class="lbl">Structures affected</div></div>
-          <div class="stat-tile"><div class="num tabular" id="an-confidence">0%</div><div class="lbl">Confidence</div></div>
+        <div class="eo-map-wrap">
+          <div id="eo-map"></div>
+          <div class="eo-divider" id="eo-divider"><span class="eo-handle">⇔</span></div>
+          <span class="compare-label before" id="eo-lbl-before">BEFORE</span>
+          <span class="compare-label after" id="eo-lbl-after">AFTER</span>
+          <input type="range" class="eo-range" id="eo-range" min="0" max="100" value="50" aria-label="Before/after divider">
         </div>
+        <div class="eo-note" id="eo-note">Yearly cloud-free mosaics — each year is stitched from its least cloudy scenes, so seasonal colour differs between years. Imagery: Sentinel-2 cloudless by EOX IT Services GmbH, containing modified Copernicus Sentinel data.</div>
+      </section>
+
+      <div class="page-grid" style="margin-top:20px;">
+        <section class="panel">
+          <div class="panel-title">Reference event · Kerala floods, August 2018 <span class="panel-sub">real imagery · NASA Earth Observatory</span></div>
+          <div class="panel-body">
+            <div class="compare-wrap" id="compare-wrap" style="max-width:none;height:520px;">
+              <img id="img-before" src="" alt="Before">
+              <div class="compare-after-clip" id="compare-after-clip"><img id="img-after" src="" alt="After"></div>
+              <div class="compare-handle" id="compare-handle"></div>
+              <span class="compare-label before" id="ref-lbl-before">BEFORE</span>
+              <span class="compare-label after" id="ref-lbl-after">AFTER</span>
+            </div>
+            <p class="analysis-note" id="ref-caption" style="padding:10px 0 0;"></p>
+            <div class="photo-credit" id="ref-credit"></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-title">Change detection <span class="panel-sub">demo model output</span></div>
+          <div class="panel-body">
+            <label for="site-select" style="max-width:360px;">Site</label>
+            <select id="site-select" style="max-width:360px;"></select>
+            <div class="analysis-stats" style="padding:0;">
+              <div class="stat-tile"><div class="num tabular" id="an-area">0.00</div><div class="lbl">Change area (km²)</div></div>
+              <div class="stat-tile"><div class="num tabular" id="an-structures">0</div><div class="lbl">Structures affected</div></div>
+              <div class="stat-tile"><div class="num tabular" id="an-confidence">0%</div><div class="lbl">Confidence</div></div>
+            </div>
+            <p class="analysis-note" id="site-note" style="padding:12px 0 0;"></p>
+            <div class="sim-label" style="margin:12px 0 0;">These numbers are simulated model output for the demo scenario — they are not computed from the imagery above.</div>
+          </div>
+        </section>
       </div>
     </div>
   </div>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <script src="js/data.js"></script>
   <script src="js/auth.js"></script>
   <script>
@@ -59,46 +83,78 @@
       RLAuth.renderHeader();
       RLAuth.renderNav(RLAuth.NAV.observer, "view-analyzer.html");
 
-      const SITES = window.RESCUELINK_DATA.IMAGERY_SITES;
+      const D = window.RESCUELINK_DATA;
+      const toLatLng = p => [D.BASE_LAT - p.y * D.UNIT_M / 111320, D.BASE_LON + p.x * D.UNIT_M / (111320 * Math.cos(D.BASE_LAT * Math.PI / 180))];
 
-      function loadSite(key) {
-        const s = SITES[key];
-        document.getElementById("img-before").src = s.before;
-        document.getElementById("img-after").src = s.after;
-        document.getElementById("an-area").textContent = s.area;
-        document.getElementById("an-structures").textContent = s.structures;
-        document.getElementById("an-confidence").textContent = s.confidence + "%";
+      // ---------- Live Sentinel-2 comparison over the sector ----------
+      const TILES = y => "https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-" + y + "_3857/default/g/{z}/{y}/{x}.jpg";
+      const ATTR = y => "Sentinel-2 cloudless " + y + " by <a href=\"https://s2maps.eu\" target=\"_blank\" rel=\"noopener\">EOX IT Services GmbH</a> (modified Copernicus Sentinel data)";
+      const bounds = L.latLngBounds(toLatLng({ x: 1000, y: 620 }), toLatLng({ x: 0, y: 0 }));
+      const map = L.map("eo-map", { minZoom: 11, maxZoom: 16, zoomSnap: 0.25 });
+      map.attributionControl.setPrefix(false);
+      let before = null, after = null;
+      function layer(year) { return L.tileLayer(TILES(year), { maxNativeZoom: 14, maxZoom: 16, attribution: ATTR(year) }); }
+      function setYears(yb, ya) {
+        if (before) map.removeLayer(before); if (after) map.removeLayer(after);
+        before = layer(yb).addTo(map); after = layer(ya).addTo(map);
+        document.getElementById("eo-lbl-before").textContent = "BEFORE · " + yb; document.getElementById("eo-lbl-after").textContent = "AFTER · " + ya;
+        clip();
       }
+      // The classic side-by-side trick: clip each layer's container to one side of the divider.
+      function clip() {
+        if (!before || !after) return;
+        const pct = +document.getElementById("eo-range").value / 100;
+        const nw = map.containerPointToLayerPoint([0, 0]), se = map.containerPointToLayerPoint(map.getSize());
+        const x = nw.x + (se.x - nw.x) * pct;
+        before.getContainer().style.clip = "rect(" + nw.y + "px, " + x + "px, " + se.y + "px, " + nw.x + "px)";
+        after.getContainer().style.clip = "rect(" + nw.y + "px, " + se.x + "px, " + se.y + "px, " + x + "px)";
+        document.getElementById("eo-divider").style.left = (pct * 100) + "%";
+      }
+      map.on("move zoom resize", clip);
+      document.getElementById("eo-range").addEventListener("input", clip);
+      L.rectangle(bounds, { color: "#fff", weight: 1.5, dashArray: "6 5", fill: false, interactive: false }).addTo(map);
+      map.fitBounds(bounds, { padding: [10, 10] });
 
-      document.getElementById("site-select").addEventListener("change", (e) => loadSite(e.target.value));
-      loadSite("a");
+      const selB = document.getElementById("eo-before"), selA = document.getElementById("eo-after");
+      D.EO_YEARS.forEach(y => { selB.add(new Option(y, y)); selA.add(new Option(y, y)); });
+      selB.value = 2019; selA.value = 2024;
+      selB.addEventListener("change", () => setYears(+selB.value, +selA.value));
+      selA.addEventListener("change", () => setYears(+selB.value, +selA.value));
+      setYears(2019, 2024);
 
-      const wrap = document.getElementById("compare-wrap");
-      const clip = document.getElementById("compare-after-clip");
-      const handle = document.getElementById("compare-handle");
+      const sites = document.getElementById("eo-sites");
+      sites.innerHTML = '<button class="btn-ghost btn-xs" data-site="all">Whole sector</button>' + D.EO_SITES.map(s => '<button class="btn-ghost btn-xs" data-site="' + s.id + '">' + s.label.split(" — ")[0] + "</button>").join("");
+      sites.querySelectorAll("[data-site]").forEach(b => b.addEventListener("click", () => {
+        sites.querySelectorAll("[data-site]").forEach(x => x.classList.toggle("active", x === b));
+        if (b.dataset.site === "all") { map.fitBounds(bounds, { padding: [10, 10] }); return; }
+        const s = D.EO_SITES.find(x => x.id === b.dataset.site); map.flyTo(toLatLng(s), s.zoom, { duration: .8 });
+        document.getElementById("site-select").value = s.id; showSite(s.id);
+      }));
+      let tileErrors = 0; map.on("tileerror", () => { if (++tileErrors === 3) document.getElementById("eo-note").innerHTML = '<span style="color:var(--p0)">Satellite tiles could not load — this comparison needs internet access.</span>'; });
+
+      // ---------- Reference pair (real, public domain) ----------
+      const R = D.EO_REFERENCE;
+      document.getElementById("img-before").src = R.before.src; document.getElementById("img-after").src = R.after.src;
+      document.getElementById("ref-lbl-before").textContent = R.before.label; document.getElementById("ref-lbl-after").textContent = R.after.label;
+      document.getElementById("ref-caption").textContent = R.caption;
+      document.getElementById("ref-credit").innerHTML = "Before: " + R.before.credit + ' · <a href="' + R.before.page + '" target="_blank" rel="noopener">source</a>. After: ' + R.after.credit + ' · <a href="' + R.after.page + '" target="_blank" rel="noopener">source</a>.';
+
+      const wrap = document.getElementById("compare-wrap"), clipEl = document.getElementById("compare-after-clip"), handle = document.getElementById("compare-handle");
       let dragging = false;
-
-      function setSplit(pct) {
-        pct = Math.max(0, Math.min(100, pct));
-        clip.style.clipPath = "inset(0 " + (100 - pct) + "% 0 0)";
-        handle.style.left = pct + "%";
-      }
-
-      function posFromEvent(e) {
-        const rect = wrap.getBoundingClientRect();
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        return ((clientX - rect.left) / rect.width) * 100;
-      }
-
-      handle.addEventListener("mousedown", () => dragging = true);
-      handle.addEventListener("touchstart", () => dragging = true);
-      window.addEventListener("mouseup", () => dragging = false);
-      window.addEventListener("touchend", () => dragging = false);
-      window.addEventListener("mousemove", (e) => { if (dragging) setSplit(posFromEvent(e)); });
-      window.addEventListener("touchmove", (e) => { if (dragging) setSplit(posFromEvent(e)); });
-      wrap.addEventListener("click", (e) => { if (e.target === handle) return; setSplit(posFromEvent(e)); });
-
+      function setSplit(pct) { pct = Math.max(0, Math.min(100, pct)); clipEl.style.clipPath = "inset(0 0 0 " + pct + "%)"; handle.style.left = pct + "%"; }   // before on the left, after on the right — same as the live map
+      function posFromEvent(e) { const rect = wrap.getBoundingClientRect(); const cx = e.touches ? e.touches[0].clientX : e.clientX; return ((cx - rect.left) / rect.width) * 100; }
+      handle.addEventListener("mousedown", () => dragging = true); handle.addEventListener("touchstart", () => dragging = true);
+      window.addEventListener("mouseup", () => dragging = false); window.addEventListener("touchend", () => dragging = false);
+      window.addEventListener("mousemove", e => { if (dragging) setSplit(posFromEvent(e)); }); window.addEventListener("touchmove", e => { if (dragging) setSplit(posFromEvent(e)); });
+      wrap.addEventListener("click", e => { if (e.target === handle) return; setSplit(posFromEvent(e)); });
       setSplit(50);
+
+      // ---------- Demo change-detection numbers ----------
+      const sel = document.getElementById("site-select");
+      D.EO_SITES.forEach(s => sel.add(new Option(s.label, s.id)));
+      function showSite(id) { const a = D.EO_ANALYSIS[id], s = D.EO_SITES.find(x => x.id === id); document.getElementById("an-area").textContent = a.area; document.getElementById("an-structures").textContent = a.structures; document.getElementById("an-confidence").textContent = a.confidence + "%"; document.getElementById("site-note").textContent = s.note; }
+      sel.addEventListener("change", e => { showSite(e.target.value); const s = D.EO_SITES.find(x => x.id === e.target.value); map.flyTo(toLatLng(s), s.zoom, { duration: .8 }); });
+      showSite("a");
     })();
   </script>
 </body>

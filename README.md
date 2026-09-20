@@ -38,3 +38,4 @@ Pushing to `main` runs `.github/workflows/pages.yml`, which publishes the reposi
 
 - All incident data, positions and names are fictional. The basemap is real imagery (Esri World Imagery); the scenario drawn on it is simulated.
 - Field photos are real, openly licensed photographs standing in for responder uploads — see `assets/field/CREDITS.md` for attribution (CC0, CC BY-SA 4.0, GODL-India).
+- The Satellite Imagery page streams real Sentinel-2 yearly mosaics (EOX s2cloudless) over the sector and shows a NASA Earth Observatory before/after pair of the 2018 Kerala floods — see `assets/eo/CREDITS.md`.

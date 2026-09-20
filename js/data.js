@@ -201,7 +201,6 @@
     { id: "R3", name: "Kottamala estate → NH-766 spur",  from: "Z2", to: "Z1", lengthKm: 2.2, status: "Draft", note: "estate track, 4×4 only" }
   ];
 
-  // Satellite EO before/after sample sites for the imagery pages.
   // Sensor network behind the alert engine's dynamic layer. Readings arrive
   // over each agency's own national telemetry (IMD/CWC/NCS links, ISRO
   // downlink), not local cell towers — so they keep coming when the sector
@@ -243,16 +242,29 @@
     { id: "RA-224", kind: "CHECKIN", node: "POL-03", zone: "Z6", level: "INFO", min: 52, title: "Check-in overdue by 8 min — cleared", detail: "POL-03 was on the river road between L3 and L1 acting as courier; position resumed on arrival.", via: "POS frame via gateway NDRF-03", resolved: true }
   ];
 
-  const IMAGERY_SITES = {
-    a: { label: "Site A — Kottamala ridge, slide crown", before: "assets/sat-site-a-before.svg", after: "assets/sat-site-a-after.svg", area: "1.84", structures: 37, confidence: 91 },
-    b: { label: "Site B — Puthur Kadavu river bend",     before: "assets/sat-site-b-before.svg", after: "assets/sat-site-b-after.svg", area: "0.92", structures: 12, confidence: 86 },
-    c: { label: "Site C — Elanad hamlet run-out",        before: "assets/sat-site-c-before.svg", after: "assets/sat-site-c-after.svg", area: "2.41", structures: 58, confidence: 78 }
+  // Satellite imagery pages. Sites are map-unit positions inside the sector;
+  // the page turns them into lat/lon and streams real Sentinel-2 yearly
+  // mosaics (EOX s2cloudless) for a before/after comparison. The reference
+  // pair is NASA Earth Observatory imagery of the 2018 Kerala floods.
+  const EO_SITES = [
+    { id: "a", label: "Site A — Kottamala ridge, slide origin (Z4)", x: 200, y: 450, zoom: 15, note: "Upper slope above the hamlet. Compare the vegetation cover between years along the ridge." },
+    { id: "b", label: "Site B — Puthur Kadavu river bend (Z6)", x: 800, y: 540, zoom: 15, note: "River bend and lower rows of houses. Look for changes in the channel and the fields beside it." },
+    { id: "c", label: "Site C — Elanad hamlet run-out (Z5)", x: 450, y: 420, zoom: 15, note: "Run-out path below the ridge. Tea-estate rows show clearly at this zoom." }
+  ];
+  const EO_YEARS = [2018, 2019, 2020, 2021, 2022, 2023, 2024];
+  const EO_REFERENCE = {
+    title: "Kerala floods, August 2018",
+    before: { src: "assets/eo/kerala-2018-02-06-landsat8.jpg", label: "6 February 2018 · Landsat 8", credit: "NASA Earth Observatory (Landsat 8 OLI) · public domain", page: "https://commons.wikimedia.org/wiki/File%3AKerala_oli_201837_lrg_February_6_2018.jpg" },
+    after:  { src: "assets/eo/kerala-2018-08-22-sentinel2.jpg", label: "22 August 2018 · Sentinel-2", credit: "NASA Earth Observatory (Copernicus Sentinel-2 MSI) · public domain", page: "https://commons.wikimedia.org/wiki/File%3AKerala_msi_2018234_lrg_August_22_2018.jpg" },
+    caption: "The Vembanad backwaters and the paddy polders around Kuttanad, south of Kochi. In the August image the low-lying fields between the lake and the coast are under water — the darker area that was green in February."
   };
+  // Demo output of the change-detection model. Not computed from the imagery shown.
+  const EO_ANALYSIS = { a: { area: "1.84", structures: 37, confidence: 91 }, b: { area: "0.92", structures: 12, confidence: 86 }, c: { area: "2.41", structures: 58, confidence: 78 } };
 
   global.RESCUELINK_DATA = {
     MIN, HOUR, UNIT_M, BASE_LAT, BASE_LON,
     INCIDENT, AGENCIES, ROSTER, SOS_TEXT, PENDING_QUEUES, BRIDGES, DROPPED_RELAY,
-    ZONES, REQUESTS, SEED_LOG, FIELD_REPORTS, PHOTOS, REGISTERED_FORCES, EVAC_ROUTES, IMAGERY_SITES,
+    ZONES, REQUESTS, SEED_LOG, FIELD_REPORTS, PHOTOS, REGISTERED_FORCES, EVAC_ROUTES, EO_SITES, EO_YEARS, EO_REFERENCE, EO_ANALYSIS,
     SENSORS, SENSOR_ALERTS, RESPONDER_ALERTS
   };
 
