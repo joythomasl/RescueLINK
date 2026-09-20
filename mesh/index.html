@@ -3,692 +3,74 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RescueLINK Mesh Communication</title>
-<meta name="description" content="How RescueLINK moves voice, text, images and position between responders when cellular and radio infrastructure is down: four transport tiers, packet formats, failure modes, and open questions.">
+<title>RescueLINK Mesh Simulator</title>
+<meta name="description" content="Interactive simulation of RescueLINK's four-tier mesh: leaderless clusters, managed flooding, Codec 2 PTT, chunked images, LoRa airtime, gateway fail-over, satellite fall-back, DTN transition, alerts into dead zones, priority queues, partition and rejoin.">
 <script>(function(){var t=null;try{t=localStorage.getItem("rl_theme");}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";}document.documentElement.setAttribute("data-theme",t);})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
-<style>
-/* ============================================================
-   RescueLINK — Mesh Communication reference
-   A long-form technical document. Same family as the console
-   (white + gold, Inter, JetBrains Mono) with a serif for the
-   prose so it reads as a document, not a dashboard.
-   ============================================================ */
-:root{
-  color-scheme:light;
-  --bg:#F3F1EC; --paper:#FFFFFF; --raised:#F6F4EF; --line:#DDD8CE; --line-2:#C9C2B4;
-  --ink:#1F2226; --ink-2:#5B6066; --ink-3:#8A8F95;
-  --gold:#B8891A; --gold-2:#8A6710; --gold-soft:rgba(184,137,26,.10);
-  --red:#C4291F; --red-soft:rgba(196,41,31,.08);
-  --amber:#B96400; --amber-soft:rgba(185,100,0,.10);
-  --green:#1F7A5C; --green-soft:rgba(31,122,92,.10);
-  --blue:#2E5C82; --blue-soft:rgba(46,92,130,.10);
-  --tier1:#1F7A5C; --tier2:#B96400; --tier3:#7A4E9E; --tier4:#2E5C82;
-  --shadow:0 2px 10px rgba(30,30,20,.08);
-  --sans:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
-  --serif:'Source Serif 4',Georgia,'Times New Roman',serif;
-  --mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
-}
-:root[data-theme="dark"]{
-  color-scheme:dark;
-  --bg:#0F1417; --paper:#171D22; --raised:#1F272D; --line:#2F3A42; --line-2:#3E4A53;
-  --ink:#E6ECEF; --ink-2:#A6B1B8; --ink-3:#7C878E;
-  --gold:#C9A030; --gold-2:#E2B54D; --gold-soft:rgba(226,181,77,.12);
-  --red:#F26B63; --red-soft:rgba(242,107,99,.12);
-  --amber:#F0A24A; --amber-soft:rgba(240,162,74,.12);
-  --green:#4FC48F; --green-soft:rgba(79,196,143,.12);
-  --blue:#8DB6E0; --blue-soft:rgba(141,182,224,.12);
-  --tier1:#4FC48F; --tier2:#F0A24A; --tier3:#B48BE0; --tier4:#8DB6E0;
-  --shadow:0 2px 12px rgba(0,0,0,.45);
-}
-*{box-sizing:border-box}
-html{scroll-behavior:smooth;scroll-padding-top:72px}
-@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 var(--sans);-webkit-font-smoothing:antialiased}
-a{color:var(--gold-2)}
-button{font:inherit;color:inherit}
-:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
-code,pre,.mono{font-family:var(--mono)}
-code{font-size:.88em;background:var(--raised);border:1px solid var(--line);border-radius:4px;padding:1px 5px}
-pre{background:var(--raised);border:1px solid var(--line);border-radius:8px;padding:14px 16px;overflow-x:auto;font-size:13px;line-height:1.5;margin:14px 0}
-pre code{background:none;border:0;padding:0;font-size:inherit}
-
-/* ---------- top bar ---------- */
-.top{position:sticky;top:0;z-index:20;background:var(--paper);border-bottom:3px solid var(--gold);height:58px;display:flex;align-items:center;gap:18px;padding:0 20px}
-.brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink)}
-.brand svg{width:30px;height:30px;color:var(--gold)}
-.brand b{font-weight:800;font-size:19px;letter-spacing:.01em}
-.brand small{display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);font-weight:600;margin-top:1px}
-.top .sp{flex:1}
-.top a.lnk{font-size:13px;font-weight:600;text-decoration:none;color:var(--ink-2);padding:6px 10px;border-radius:6px}
-.top a.lnk:hover{color:var(--ink);background:var(--raised)}
-.theme-toggle{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:0 10px;background:var(--raised);border:1px solid var(--line);border-radius:20px;color:var(--ink-2);font-size:12px;font-weight:600;cursor:pointer}
-.theme-toggle:hover{color:var(--ink);border-color:var(--ink-3)}
-
-/* ---------- hero ---------- */
-.hero{background:var(--paper);border-bottom:1px solid var(--line)}
-.hero .in{max-width:1180px;margin:0 auto;padding:44px 24px 32px;display:grid;grid-template-columns:1.1fr 1fr;gap:36px;align-items:center}
-.eyebrow{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-2)}
-h1{font-family:var(--serif);font-weight:600;font-size:clamp(30px,4vw,44px);line-height:1.12;margin:8px 0 14px;text-wrap:balance;letter-spacing:-.01em}
-.lede{font-family:var(--serif);font-size:19px;line-height:1.5;color:var(--ink-2);max-width:58ch;margin:0}
-.facts{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:22px}
-.fact{background:var(--raised);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
-.fact b{display:block;font-size:18px;font-weight:800;line-height:1.1;white-space:nowrap}
-.fact span{font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
-
-/* ---------- layout ---------- */
-.wrap{max-width:1180px;margin:0 auto;padding:28px 24px 80px;display:grid;grid-template-columns:240px minmax(0,1fr);gap:40px}
-.toc{position:sticky;top:74px;align-self:start;max-height:calc(100vh - 90px);overflow-y:auto;padding-right:6px}
-.toc .eyebrow{margin-bottom:8px}
-.toc a{display:block;font-size:13px;color:var(--ink-2);text-decoration:none;padding:5px 10px;border-left:2px solid transparent;line-height:1.35}
-.toc a:hover{color:var(--ink)}
-.toc a.on{color:var(--gold-2);border-left-color:var(--gold);font-weight:600}
-.toc a .n{display:inline-block;width:22px;color:var(--ink-3);font-family:var(--mono);font-size:11px}
-main{min-width:0}
-section{padding:26px 0 8px;border-top:1px solid var(--line)}
-section:first-child{border-top:0;padding-top:0}
-h2{font-family:var(--serif);font-weight:600;font-size:28px;line-height:1.2;margin:0 0 6px;letter-spacing:-.01em;text-wrap:balance}
-h2 .n{font-family:var(--mono);font-size:13px;color:var(--gold-2);font-weight:600;margin-right:10px;vertical-align:middle}
-h3{font-size:17px;font-weight:700;margin:26px 0 8px}
-h4{font-size:14px;font-weight:700;margin:18px 0 6px;color:var(--ink-2);text-transform:uppercase;letter-spacing:.06em}
-p{max-width:72ch;margin:10px 0}
-ul,ol{max-width:72ch;padding-left:22px}
-li{margin:5px 0}
-li::marker{color:var(--gold-2)}
-strong{font-weight:700}
-.kicker{font-family:var(--serif);font-size:18px;color:var(--ink-2);max-width:66ch;margin:0 0 14px}
-.callout{border:1px solid var(--line);border-left:4px solid var(--gold);background:var(--paper);border-radius:8px;padding:12px 16px;margin:16px 0;max-width:80ch}
-.callout.red{border-left-color:var(--red);background:var(--red-soft)}
-.callout.green{border-left-color:var(--green)}
-.callout.blue{border-left-color:var(--blue)}
-.callout b.t{display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-bottom:3px}
-.callout p{margin:4px 0}
-
-/* cards / grids */
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0}
-.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:14px 0}
-.card{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:14px 16px;box-shadow:var(--shadow)}
-.card h5{margin:0 0 6px;font-size:14px;font-weight:700}
-.card p{font-size:14px;margin:6px 0;color:var(--ink-2)}
-.card .tag{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:4px;margin-bottom:8px}
-.tag.rej{background:var(--red-soft);color:var(--red)}
-.tag.ok{background:var(--green-soft);color:var(--green)}
-.tag.partial{background:var(--amber-soft);color:var(--amber)}
-.tag.t1{background:var(--green-soft);color:var(--tier1)}.tag.t2{background:var(--amber-soft);color:var(--tier2)}.tag.t3{background:rgba(122,78,158,.12);color:var(--tier3)}.tag.t4{background:var(--blue-soft);color:var(--tier4)}
-
-/* tables */
-.tbl{overflow-x:auto;margin:14px 0;border:1px solid var(--line);border-radius:8px;background:var(--paper)}
-table{border-collapse:collapse;width:100%;font-size:14px}
-th{text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold-2);padding:10px 12px;border-bottom:1px solid var(--line);background:var(--raised);white-space:nowrap}
-td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
-tr:last-child td{border-bottom:0}
-td.num,th.num{text-align:right;font-family:var(--mono);font-size:13px;white-space:nowrap}
-td.k{font-weight:600;white-space:nowrap}
-tfoot td{background:var(--raised);font-weight:700}
-.bar{display:inline-block;height:8px;border-radius:2px;background:var(--gold);vertical-align:middle;margin-right:8px}
-.bar.red{background:var(--red)}.bar.amber{background:var(--amber)}.bar.green{background:var(--green)}
-
-/* steps / pipeline */
-.pipe{display:flex;flex-wrap:wrap;gap:6px;align-items:stretch;margin:14px 0;counter-reset:s}
-.pipe span{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:7px 10px;font-family:var(--mono);font-size:12px;position:relative;counter-increment:s}
-.pipe span::before{content:counter(s);display:inline-block;font-size:10px;color:var(--gold-2);margin-right:6px;font-weight:700}
-.pipe.plain span::before{content:none}
-.lifecycle{display:flex;flex-wrap:wrap;gap:0;align-items:center;margin:12px 0}
-.lifecycle span{background:var(--raised);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font-family:var(--mono);font-size:12px}
-.lifecycle i{font-style:normal;color:var(--ink-3);padding:0 8px}
-
-/* budget stacked bar */
-.stack{display:flex;height:34px;border-radius:6px;overflow:hidden;border:1px solid var(--line);margin:12px 0 6px;max-width:80ch}
-.stack div{display:grid;place-items:center;font-family:var(--mono);font-size:11px;font-weight:600;color:#fff;border-right:2px solid var(--paper)}
-.stack div:last-child{border-right:0}
-.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--ink-2)}
-.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
-
-/* figures */
-figure{margin:18px 0;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:14px;box-shadow:var(--shadow)}
-figure svg{width:100%;height:auto;display:block}
-figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px}
-.d-lbl{font:600 12px var(--sans);fill:var(--ink)}
-.d-sub{font:500 10.5px var(--sans);fill:var(--ink-2)}
-.d-mono{font:500 10.5px var(--mono);fill:var(--ink-2)}
-.d-box{fill:var(--paper);stroke:var(--line-2);stroke-width:1.2}
-.d-box.dec{fill:var(--raised)}
-.d-yes{stroke:var(--green)}.d-no{stroke:var(--red)}
-.d-arrow{stroke:var(--ink-3);stroke-width:1.4;fill:none;marker-end:url(#ah)}
-.d-link{stroke:var(--tier1);stroke-width:2.2}
-.d-lora{stroke:var(--tier2);stroke-width:2;stroke-dasharray:7 5}
-.d-sat{stroke:var(--tier3);stroke-width:1.6;stroke-dasharray:2 4}
-.d-net{stroke:var(--tier4);stroke-width:2}
-.d-node{fill:var(--tier1);stroke:var(--paper);stroke-width:2}
-.d-bridge{fill:var(--tier2);stroke:var(--paper);stroke-width:2}
-.d-ring{fill:var(--green-soft);stroke:var(--tier1);stroke-opacity:.5;stroke-width:1}
-.d-cloud{fill:var(--blue-soft);stroke:var(--tier4);stroke-width:1.4}
-
-/* checklist */
-.todo{list-style:none;padding:0;max-width:80ch}
-.todo li{display:grid;grid-template-columns:20px 1fr;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);margin:0}
-.todo li:last-child{border-bottom:0}
-.todo .box{width:16px;height:16px;border:1.5px solid var(--line-2);border-radius:4px;margin-top:3px}
-.todo b{font-weight:700}
-.todo span.why{display:block;font-size:13px;color:var(--ink-2)}
-
-/* rank list */
-.ladder{counter-reset:r;list-style:none;padding:0;margin:12px 0;max-width:80ch}
-.ladder li{counter-increment:r;display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start;padding:8px 0;border-bottom:1px solid var(--line);margin:0}
-.ladder li::before{content:counter(r);font-family:var(--mono);font-weight:700;font-size:13px;color:var(--gold-2);background:var(--gold-soft);border-radius:6px;width:28px;height:28px;display:grid;place-items:center}
-.ladder li:last-child{border-bottom:0}
-.ladder b{display:block}
-.ladder span{font-size:13.5px;color:var(--ink-2)}
-
-footer{border-top:1px solid var(--line);background:var(--paper);padding:22px 24px;font-size:13px;color:var(--ink-2)}
-footer .in{max-width:1180px;margin:0 auto;display:flex;flex-wrap:wrap;gap:8px 24px;justify-content:space-between}
-
-@media (max-width:980px){
-  .hero .in{grid-template-columns:1fr}
-  .wrap{grid-template-columns:1fr;gap:20px}
-  .toc{position:static;max-height:none;display:flex;flex-wrap:wrap;gap:2px 4px;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--paper)}
-  .toc .eyebrow{width:100%}
-  .toc a{border-left:0;padding:3px 8px}
-  .grid2,.grid3{grid-template-columns:1fr}
-  .facts{grid-template-columns:1fr 1fr}
-}
-</style>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="sim.css">
 </head>
 <body>
-
 <header class="top">
   <a class="brand" href="../index.html">
     <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M3 22c6-9 20-9 26 0" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="6" cy="20" r="2.4" fill="currentColor"/><circle cx="16" cy="15.4" r="2.4" fill="currentColor"/><circle cx="26" cy="20" r="2.4" fill="currentColor"/><path d="M6 20l10-4.6L26 20" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".6"/></svg>
-    <span><b>RescueLINK</b><small>Mesh communication · technical reference</small></span>
+    <span><b>RescueLINK</b><small>Mesh communication simulator</small></span>
   </a>
   <span class="sp"></span>
+  <div class="speed" role="group" aria-label="Simulation speed">
+    <button type="button" id="btn-pause" class="tb" title="Pause / resume">⏸</button>
+    <button type="button" class="tb spd" data-s="1">1×</button>
+    <button type="button" class="tb spd on" data-s="4">4×</button>
+    <button type="button" class="tb spd" data-s="20">20×</button>
+    <span class="clock mono" id="clock">t = 0.0 s</span>
+  </div>
   <a class="lnk" href="../index.html">Command console</a>
-  <a class="lnk" href="https://github.com/joythomasl/RescueLINK" target="_blank" rel="noopener">GitHub</a>
   <button type="button" class="theme-toggle" id="theme-toggle"></button>
 </header>
 
-<div class="hero">
-  <div class="in">
-    <div>
-      <div class="eyebrow">Smart India Hackathon 2026 · SIH26206 · Team ANTIMATTER</div>
-      <h1>How RescueLINK talks when the network is gone</h1>
-      <p class="lede">Responders from several agencies need voice, text, images and position in the first 4.5–5 hours after a disaster — exactly when cellular and radio infrastructure is destroyed or not yet restored. This is the complete reference for the communication system: the four transport tiers, why each technology beat its alternatives, packet formats, failure modes, and what is still unresolved.</p>
-      <div class="facts">
-        <div class="fact"><b>4 tiers</b><span>one transport ladder</span></div>
-        <div class="fact"><b>100–200 m</b><span>per Wi-Fi Aware hop</span></div>
-        <div class="fact"><b>1.6 kbit/s</b><span>Codec 2 speech</span></div>
-        <div class="fact"><b>240 / 340 B</b><span>LoRa / satellite frame</span></div>
+<div class="shell">
+  <aside class="scenarios" id="scenarios" aria-label="Scenarios"></aside>
+
+  <main class="stage">
+    <div class="stage-head">
+      <div>
+        <div class="eyebrow" id="sc-tier"></div>
+        <h1 id="sc-title"></h1>
+        <p class="blurb" id="sc-blurb"></p>
+      </div>
+      <button type="button" class="btn" id="btn-reset">↺ Reset scenario</button>
+    </div>
+    <div class="canvas-wrap">
+      <canvas id="net" width="960" height="560" aria-label="Network simulation canvas"></canvas>
+      <div class="hint" id="hint"></div>
+    </div>
+    <div class="narration">
+      <div class="steps" id="steps"></div>
+      <div class="narr-text" id="narr"></div>
+      <div class="narr-actions">
+        <button type="button" class="btn primary" id="btn-next">Next step →</button>
+        <label class="auto"><input type="checkbox" id="auto-run"> auto-run</label>
       </div>
     </div>
-    <figure style="margin:0">
-      <svg viewBox="0 0 560 300" role="img" aria-label="Four transport tiers: Wi-Fi Aware clusters, ESP32 LoRa bridges, satellite gateway, and the cloud">
-        <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--ink-3)"/></marker></defs>
-        <!-- cloud -->
-        <path class="d-cloud" d="M420 40 c-18 0 -30 12 -28 26 c-14 2 -22 12 -20 22 c2 12 14 18 28 18 h100 c16 0 28 -10 28 -22 c0 -12 -10 -20 -22 -20 c-2 -14 -16 -24 -32 -22 c-8 -10 -24 -12 -36 -6 c-6 -2 -12 -2 -18 4z"/>
-        <text class="d-lbl" x="480" y="80" text-anchor="middle">Cloud backend</text>
-        <text class="d-sub" x="480" y="94" text-anchor="middle">EOC · dashboards · alerts</text>
-        <!-- satellite -->
-        <g transform="translate(300 34)"><rect class="d-box" x="-16" y="-8" width="32" height="16" rx="3"/><line x1="-16" y1="0" x2="-32" y2="0" stroke="var(--tier3)" stroke-width="3"/><line x1="16" y1="0" x2="32" y2="0" stroke="var(--tier3)" stroke-width="3"/></g>
-        <text class="d-sub" x="300" y="64" text-anchor="middle">Iridium SBD · 340 B · simulated</text>
-        <path class="d-sat" d="M300 42 L 430 66"/>
-        <path class="d-sat" d="M300 42 L 132 170"/>
-        <!-- clusters -->
-        <g><circle class="d-ring" cx="120" cy="200" r="56"/><circle class="d-node" cx="100" cy="185" r="7"/><circle class="d-node" cx="128" cy="178" r="7"/><circle class="d-node" cx="142" cy="208" r="7"/><circle class="d-node" cx="112" cy="220" r="7"/><circle class="d-node" cx="90" cy="212" r="7"/>
-          <line class="d-link" x1="100" y1="185" x2="128" y2="178"/><line class="d-link" x1="128" y1="178" x2="142" y2="208"/><line class="d-link" x1="142" y1="208" x2="112" y2="220"/><line class="d-link" x1="112" y1="220" x2="90" y2="212"/><line class="d-link" x1="100" y1="185" x2="112" y2="220"/>
-          <rect class="d-bridge" x="126" y="164" width="12" height="12" transform="rotate(45 132 170)"/>
-          <text class="d-lbl" x="120" y="275" text-anchor="middle">Cluster A · staging</text><text class="d-sub" x="120" y="289" text-anchor="middle">Wi-Fi Aware · sat modem on bridge</text></g>
-        <g><circle class="d-ring" cx="300" cy="220" r="50"/><circle class="d-node" cx="284" cy="208" r="7"/><circle class="d-node" cx="310" cy="200" r="7"/><circle class="d-node" cx="322" cy="228" r="7"/><circle class="d-node" cx="292" cy="238" r="7"/>
-          <line class="d-link" x1="284" y1="208" x2="310" y2="200"/><line class="d-link" x1="310" y1="200" x2="322" y2="228"/><line class="d-link" x1="322" y1="228" x2="292" y2="238"/><line class="d-link" x1="284" y1="208" x2="292" y2="238"/>
-          <rect class="d-bridge" x="294" y="184" width="12" height="12" transform="rotate(45 300 190)"/>
-          <text class="d-lbl" x="300" y="290" text-anchor="middle">Cluster B · incident</text></g>
-        <g><circle class="d-ring" cx="470" cy="210" r="44"/><circle class="d-node" cx="456" cy="200" r="7"/><circle class="d-node" cx="482" cy="196" r="7"/><circle class="d-node" cx="476" cy="224" r="7"/>
-          <line class="d-link" x1="456" y1="200" x2="482" y2="196"/><line class="d-link" x1="482" y1="196" x2="476" y2="224"/><line class="d-link" x1="456" y1="200" x2="476" y2="224"/>
-          <circle cx="490" cy="188" r="5" fill="var(--tier4)" stroke="var(--paper)" stroke-width="2"/>
-          <text class="d-lbl" x="470" y="274" text-anchor="middle">Cluster C · gateway phone</text><text class="d-sub" x="470" y="288" text-anchor="middle">one phone regained internet</text></g>
-        <!-- lora backbone -->
-        <path class="d-lora" d="M132 170 L 300 190"/><text class="d-mono" x="216" y="170" text-anchor="middle">LoRa · 865–867 MHz</text>
-        <path class="d-net" d="M490 188 C 500 150, 490 120, 470 100"/><text class="d-mono" x="522" y="150" text-anchor="middle">cellular</text>
-      </svg>
-      <figcaption>The picture the coordinator sees: phone clusters (Tier 1), ESP32 + LoRa bridges between them (Tier 2), a satellite modem on one bridge (Tier 3), and any phone that regains internet becoming a gateway (Tier 4).</figcaption>
-    </figure>
-  </div>
+  </main>
+
+  <aside class="side">
+    <section class="panel">
+      <div class="panel-title">Controls</div>
+      <div class="panel-body" id="controls"></div>
+    </section>
+    <section class="panel">
+      <div class="panel-title">Live metrics</div>
+      <div class="panel-body metrics" id="metrics"></div>
+    </section>
+    <section class="panel grow">
+      <div class="panel-title">Event log <span class="sub" id="log-cnt"></span></div>
+      <div class="log" id="log"></div>
+    </section>
+  </aside>
 </div>
 
-<div class="wrap">
-<nav class="toc" aria-label="Sections">
-  <div class="eyebrow">Contents</div>
-  <a href="#s1"><span class="n">01</span>The core requirement</a>
-  <a href="#s2"><span class="n">02</span>Technology selection</a>
-  <a href="#s3"><span class="n">03</span>Tier 1 — local cluster mesh</a>
-  <a href="#s4"><span class="n">04</span>Voice — PTT with Codec 2</a>
-  <a href="#s5"><span class="n">05</span>Images and data transfer</a>
-  <a href="#s6"><span class="n">06</span>Tier 2 — ESP32 + LoRa bridge</a>
-  <a href="#s7"><span class="n">07</span>Tier 3 — satellite link</a>
-  <a href="#s8"><span class="n">08</span>Tier 4 — adaptive online transition</a>
-  <a href="#s9"><span class="n">09</span>Alert delivery into a dead zone</a>
-  <a href="#s10"><span class="n">10</span>Range — the honest picture</a>
-  <a href="#s11"><span class="n">11</span>Priority and queueing</a>
-  <a href="#s12"><span class="n">12</span>Security on the mesh</a>
-  <a href="#s13"><span class="n">13</span>Failure modes to test</a>
-  <a href="#s14"><span class="n">14</span>Engineering targets</a>
-  <a href="#s15"><span class="n">15</span>Demo strategy</a>
-  <a href="#s16"><span class="n">16</span>Open items</a>
-</nav>
-
-<main>
-
-<!-- 1 -->
-<section id="s1">
-  <h2><span class="n">01</span>The core requirement</h2>
-  <p class="kicker">Responders from multiple agencies must communicate — voice, text, images, position — in the first 4.5–5 hours after a disaster, when cellular and radio infrastructure is destroyed or not yet re-established. Six constraints shaped everything that follows.</p>
-  <div class="grid3">
-    <div class="card"><h5>No master / slave</h5><p>A leaderless network was a hard requirement. If one device drops, the network must not collapse.</p></div>
-    <div class="card"><h5>Android only</h5><p>iOS is explicitly out of scope: Wi-Fi Aware behaves differently there, and cross-platform would mean two implementations.</p></div>
-    <div class="card"><h5>No rooting or jailbreaking</h5><p>Stock, unmodified Android devices only.</p></div>
-    <div class="card"><h5>Multi-hop is mandatory</h5><p>Direct-range-only communication was rejected as insufficient.</p></div>
-    <div class="card"><h5>Walkie-talkie replacement, plus more</h5><p>Must do what radios do (voice, PTT) <em>and</em> what they cannot (text, images, GPS).</p></div>
-    <div class="card"><h5>Battery optimisation not required</h5><p>The 4.5–5 hour scope fits stock phone battery life; no duty-cycling engineering needed.</p></div>
-  </div>
-</section>
-
-<!-- 2 -->
-<section id="s2">
-  <h2><span class="n">02</span>Technology selection — what was chosen and what was rejected</h2>
-  <div class="grid2">
-    <div class="card"><span class="tag rej">Rejected</span><h5>Wi-Fi Direct</h5><p>Fundamentally master/slave. One device must be <strong>Group Owner</strong> — the central coordinator broadcasting beacons and managing connections; the rest are clients. A mesh on top needs every device to play both roles at once (client to one group, GO to another). <strong>If the GO drops out, the local cluster collapses</strong> until a new election completes. That directly violates the leaderless requirement.</p></div>
-    <div class="card"><span class="tag rej">Rejected · was initially recommended</span><h5>Meshrabiya (UstadMobile)</h5><p>Real, maintained, and genuinely the lowest-effort path to multi-hop on Android: a custom <code>SocketFactory</code> gives ordinary TCP/UDP sockets, 300 Mbps+ throughput and virtual link-local routing (169.254.x.y) with BATMAN-style forwarding. Rejected for two reasons:</p>
-      <p><strong>1. It is not actually leaderless.</strong> Under the virtual IP layer it automates the AP + Station hack — A starts a hotspot, B connects then starts its own, C connects to B. That gives rigid tree/chain topologies, not flat meshes; if an intermediate parent walks away, everything downstream is cut until it re-links. Claiming "leaderless" on top of this would not survive a technical question.</p>
-      <p><strong>2. It needs out-of-band priming.</strong> Nodes cannot discover each other over the air; SSID, passphrase and IPv6 link-local address are passed by QR code or BLE first. Expecting responders from different agencies to scan each other's QR codes mid-crisis is not a realistic assumption.</p></div>
-    <div class="card"><span class="tag rej">Rejected</span><h5>Wi-Fi Ad-Hoc (IBSS)</h5><p>Classic flat topology, genuinely decentralised — but locked down at OS/firmware level on modern Android and iOS for security and power reasons. Requires rooting. Out of scope.</p></div>
-    <div class="card"><span class="tag partial">Control channel only</span><h5>BLE Mesh</h5><p>The most mature strictly-leaderless option on consumer phones: managed flooding, zero hierarchy, no pairing. But bandwidth is far too low for voice and images. Viable as a discovery/control channel, not as the primary data transport.</p></div>
-  </div>
-  <div class="callout green">
-    <b class="t">Chosen</b>
-    <p><strong>Wi-Fi Aware (Neighbor Awareness Networking)</strong> — Android 8.0+ / API 26, <code>android.net.wifi.aware</code>. The modern official Wi-Fi standard purpose-built for leaderless localised clusters.</p>
-    <ul>
-      <li><strong>Symmetrical discovery.</strong> Devices form a cluster by synchronising Wi-Fi clocks and exchanging beacons in shared discovery windows. No access point, no group owner, no master.</li>
-      <li><strong>Publish / subscribe.</strong> Node A publishes a service name; Node B subscribes to it. There is no central identity to connect to.</li>
-      <li><strong>On-demand data paths (NDP).</strong> When data needs to move, two devices spin up a temporary direct link that tears down after transmission.</li>
-      <li><strong>Automatic discovery.</strong> No QR/BLE priming — unlike Meshrabiya.</li>
-    </ul>
-    <p><strong>The trade-off accepted:</strong> Wi-Fi Aware gives raw point-to-point data paths only. All multi-hop routing must be written by the team. It is the single largest piece of custom engineering in the project and sits outside the team's core AI/ML–web–GIS skill set. It was chosen deliberately: a defensible leaderless claim was judged worth the extra work.</p>
-    <p><strong>Known constraint — hardware fragmentation.</strong> Wi-Fi Aware needs manufacturer antenna/firmware support, not just Android 8+. Common on flagship and mid-range chipsets (Snapdragon, Tensor); frequently stripped from ultra-budget handsets. Target devices must be verified before the demo.</p>
-  </div>
-</section>
-
-<!-- 3 -->
-<section id="s3">
-  <h2><span class="n">03</span>Tier 1 — local cluster mesh (phone to phone)</h2>
-  <h3>Connection layer</h3>
-  <p>Wi-Fi Aware lifecycle:</p>
-  <div class="lifecycle"><span>System check</span><i>→</i><span>Attach session</span><i>→</i><span>Publish / Subscribe</span><i>→</i><span>Peer discovery</span><i>→</i><span>Open data path (NDP)</span></div>
-  <p><strong>Manifest permissions:</strong> <code>android.hardware.wifi.aware</code> (uses-feature), <code>ACCESS_WIFI_STATE</code>, <code>CHANGE_WIFI_STATE</code>, <code>ACCESS_FINE_LOCATION</code> (required for P2P discovery).</p>
-  <p>Availability check before initialising a node:</p>
-<pre><code>val wifiAwareManager = context.getSystemService(Context.WIFI_AWARE_SERVICE) as WifiAwareManager?
-val isSupported = context.packageManager.hasSystemFeature(PackageManager.FEATURE_WIFI_AWARE)
-if (isSupported &amp;&amp; wifiAwareManager?.isAvailable == true) { /* initialise node */ }</code></pre>
-  <p><strong>Data path setup:</strong> use <code>WifiAwareNetworkSpecifier</code> with a PSK passphrase, request via <code>ConnectivityManager</code> with <code>TRANSPORT_WIFI_AWARE</code>, then obtain a socket from <code>network.getSocketFactory()</code>.</p>
-  <div class="callout red"><b class="t">Critical implementation note</b><p>Bind each socket to its returned peer <code>Network</code> object. Do <strong>not</strong> assume ordinary routing will select the intended NAN interface.</p></div>
-  <p><strong>Range:</strong> ~100–200 m per hop, heavily dependent on obstructions.</p>
-
-  <h3>Routing layer — custom, and the core engineering work</h3>
-  <p>Every packet is wrapped:</p>
-<pre><code>data class MeshPacket(
-    val packetId: String,     // UUID — prevents infinite loops
-    val sourceNodeId: String, // original sender
-    val destNodeId: String,   // ultimate target (or broadcast)
-    val hopLimit: Int,        // TTL — prevents packet storms
-    val payload: ByteArray    // encrypted body
-)</code></pre>
-  <figure>
-    <svg viewBox="0 0 760 330" role="img" aria-label="Relay evaluation pipeline on packet receipt">
-      <rect class="d-box" x="300" y="12" width="160" height="34" rx="6"/><text class="d-lbl" x="380" y="34" text-anchor="middle">Packet received</text>
-      <path class="d-arrow" d="M380 46 V 66"/>
-      <path class="d-box dec" d="M380 66 L 470 96 L 380 126 L 290 96 Z"/><text class="d-lbl" x="380" y="93" text-anchor="middle">destNodeId ==</text><text class="d-lbl" x="380" y="107" text-anchor="middle">my node ID?</text>
-      <path class="d-arrow d-yes" d="M290 96 H 200"/><text class="d-mono" x="244" y="90" text-anchor="middle">yes</text>
-      <rect class="d-box" x="60" y="80" width="140" height="34" rx="6"/><text class="d-lbl" x="130" y="102" text-anchor="middle">Process payload</text>
-      <path class="d-arrow d-no" d="M380 126 V 150"/><text class="d-mono" x="396" y="142">no</text>
-      <rect class="d-box" x="310" y="150" width="140" height="30" rx="6"/><text class="d-lbl" x="380" y="170" text-anchor="middle">Decrement TTL</text>
-      <path class="d-arrow" d="M380 180 V 198"/>
-      <path class="d-box dec" d="M380 198 L 450 222 L 380 246 L 310 222 Z"/><text class="d-lbl" x="380" y="226" text-anchor="middle">TTL ≤ 0?</text>
-      <path class="d-arrow d-yes" d="M310 222 H 230"/><text class="d-mono" x="270" y="216" text-anchor="middle">yes</text>
-      <rect class="d-box" x="90" y="206" width="140" height="32" rx="6"/><text class="d-lbl" x="160" y="227" text-anchor="middle">Drop packet</text>
-      <path class="d-arrow d-no" d="M450 222 H 520"/><text class="d-mono" x="485" y="216" text-anchor="middle">no</text>
-      <path class="d-box dec" d="M600 196 L 680 222 L 600 248 L 520 222 Z"/><text class="d-lbl" x="600" y="219" text-anchor="middle">packetId already</text><text class="d-lbl" x="600" y="233" text-anchor="middle">in dedup cache?</text>
-      <path class="d-arrow d-yes" d="M600 248 V 262 H 460 V 276"/><text class="d-mono" x="540" y="258" text-anchor="middle">yes</text>
-      <rect class="d-box" x="390" y="276" width="140" height="32" rx="6"/><text class="d-lbl" x="460" y="297" text-anchor="middle">Drop packet</text>
-      <path class="d-arrow d-no" d="M680 222 H 732 V 292 H 706"/><text class="d-mono" x="706" y="216" text-anchor="middle">no</text>
-      <rect class="d-box" x="546" y="276" width="158" height="32" rx="6"/><text class="d-lbl" x="625" y="297" text-anchor="middle">Forward to next hop</text>
-    </svg>
-    <figcaption>Relay evaluation on every packet. Three cheap checks — is it mine, is it expired, have I seen it — keep flooding bounded.</figcaption>
-  </figure>
-
-  <h4>Managed flooding (gossip) — the chosen routing strategy</h4>
-  <p>Rather than computing a single route, <strong>send the same packet down every available path and let the fastest win</strong>. The first copy to arrive is processed; every duplicate arriving later is dropped by the dedup cache.</p>
-<pre><code>class AudioPacketReceiver {
-    private val seenPackets = LinkedHashSet&lt;String&gt;()  // rolling cache of ~50
-
-    fun onPacketReceived(packet: MeshPacket) {
-        if (seenPackets.contains(packet.packetId)) return  // duplicate — drop
-        seenPackets.add(packet.packetId)
-        if (seenPackets.size &gt; 50) seenPackets.remove(seenPackets.iterator().next())
-        codec2Decoder.play(packet.payload)
-    }
-}</code></pre>
-  <p><strong>Why flooding beats computed routes here:</strong> lowest possible latency (no route computation delay), and seamless resilience — if one node steps behind a wall, voice continues through the alternate path with zero switch-over delay or audio cut.</p>
-  <div class="callout"><b class="t">Concurrency limit — a real constraint</b><p>Most Android Wi-Fi Aware chips sustain only <strong>4–6 concurrent active data paths</strong>. If a relay node is at capacity but must forward to a new peer, the routing service has to tear down an idle path, establish the new one, push the queue and close it (intermittent routing).</p></div>
-  <p><strong>Hop limits:</strong> start qualification at three Wi-Fi voice hops and three LoRa forwarding hops.</p>
-
-  <h3>Multi-path splitting — explicitly rejected</h3>
-  <p>Splitting one stream across several simultaneous routes was considered and rejected for both voice and images.</p>
-  <div class="grid2">
-    <div class="card"><h5>For voice</h5><p>Codec 2 packets are 20–50 bytes — far too small for any serialisation benefit on links handling megabits per second. Worse, different routes have different hop counts and latencies, causing severe out-of-order delivery. Fixing that needs a much larger jitter buffer, which <em>increases</em> latency and makes conversation laggy. Real-time speech cannot tolerate this.</p></div>
-    <div class="card"><h5>For images</h5><p>The bottleneck is not bandwidth but the 4–6 concurrent-connection cap. Routing chunks down multiple paths forces intermediate nodes to hold multiple NDPs at once, locking up the whole network's routing capacity for one transfer and draining batteries.</p></div>
-  </div>
-  <p><strong>Correct pattern instead:</strong> managed flooding for voice (same packet, all paths, first wins); single best path with chunking for images.</p>
-</section>
-
-<!-- 4 -->
-<section id="s4">
-  <h2><span class="n">04</span>Voice — push-to-talk with Codec 2</h2>
-  <h3>Why Codec 2</h3>
-  <p>Codec 2 compresses speech to 450–3200 bps using sinusoidal coding specialised for the human voice. At 1200 bps, one second of audio is about 150 bytes. That makes voice packets small enough to route across multiple hops with virtually no congestion, and resilient — even a degraded link passes them without stuttering.</p>
-  <p><strong>Baseline selected: 1600 bit/s</strong> — 320 samples at 8 kHz = 40 ms of audio → 64 bits (8 bytes). A 1300 bps mode exists; select it by intelligibility testing, not by assumption.</p>
-  <h3>Pipeline</h3>
-  <div class="pipe"><span>AudioRecord 8 kHz mono PCM16</span><span>Resample / gain</span><span>Codec 2 encode via JNI/NDK</span><span>Frame aggregation + sequence / timestamp</span><span>Media encryption</span><span>UDP over Wi-Fi Aware</span><span>Bounded application relays</span><span>Authenticate / decrypt</span><span>Dedup / reorder</span><span>Adaptive jitter buffer</span><span>Loss concealment</span><span>Codec 2 decode</span><span>Audio output</span></div>
-<pre><code>val bufferSize = AudioRecord.getMinBufferSize(8000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
-val audioRecord = AudioRecord(MediaRecorder.AudioSource.MIC, 8000, AudioFormat.CHANNEL_IN_MONO,
-                              AudioFormat.ENCODING_PCM_16BIT, bufferSize)</code></pre>
-  <div class="callout red"><b class="t">Skill gap</b><p>Codec 2 is C. It has to be included as a source tree and compiled through Android Studio's CMake/NDK support, with a JNI wrapper passing raw PCM down and receiving compressed bytes back. For a team without embedded/systems experience this is a genuine gap and needs a named owner.</p></div>
-
-  <h3>Voice datagram budget</h3>
-  <div class="stack" aria-hidden="true">
-    <div style="flex:32;background:var(--tier4)">header 32</div>
-    <div style="flex:16;background:var(--tier1)">frames 16</div>
-    <div style="flex:16;background:var(--tier3)">AEAD 16</div>
-    <div style="flex:16;background:var(--tier2)">routing 16</div>
-    <div style="flex:48;background:var(--ink-3)">IPv6 + UDP 48</div>
-  </div>
-  <div class="legend"><span><i style="background:var(--tier4)"></i>Media header</span><span><i style="background:var(--tier1)"></i>Two Codec 2 frames (80 ms)</span><span><i style="background:var(--tier3)"></i>AEAD tag</span><span><i style="background:var(--tier2)"></i>Overlay routing + hop auth</span><span><i style="background:var(--ink-3)"></i>IPv6 + UDP headers</span></div>
-  <div class="tbl"><table>
-    <thead><tr><th>Component</th><th class="num">Bytes</th></tr></thead>
-    <tbody>
-      <tr><td>Media header</td><td class="num">32</td></tr>
-      <tr><td>Two Codec 2 frames (80 ms)</td><td class="num">16</td></tr>
-      <tr><td>AEAD tag</td><td class="num">16</td></tr>
-      <tr><td>Overlay routing + hop auth</td><td class="num">16</td></tr>
-      <tr><td class="k">Application total</td><td class="num"><b>80</b></td></tr>
-      <tr><td>IPv6 + UDP headers</td><td class="num">48</td></tr>
-    </tbody>
-    <tfoot><tr><td>IP-layer total</td><td class="num">128</td></tr></tfoot>
-  </table></div>
-  <p>At one packet per 80 ms: <code>128 × 8 / 0.08 = 12.8 kbit/s</code>. So <strong>1.6 kbit/s of speech encoding costs about 12.8 kbit/s at the IP layer</strong> — before Wi-Fi overhead, redundancy or extra forwarding hops.</p>
-
-  <h3>Media policies</h3>
-  <ul>
-    <li><strong>Jitter buffer:</strong> start around 120 ms, adapt within ~80–240 ms. Mandatory — packets hopping dynamically will not arrive evenly spaced, and playing them on arrival sounds broken and robotic.</li>
-    <li><strong>Discard</strong> packets arriving after the playout deadline; <strong>never retransmit late voice</strong>.</li>
-    <li><strong>Expire</strong> voice after ~500 ms in transit.</li>
-    <li><strong>Conceal</strong> isolated losses with attenuation; move to comfort noise for sustained loss. Codec 2 does not supply a complete packet-loss strategy — the receiver must implement concealment.</li>
-    <li><strong>Optional:</strong> include one previous Codec 2 frame for loss recovery.</li>
-    <li><strong>Avoid</strong> mixing multiple simultaneous talkers into one channel.</li>
-  </ul>
-
-  <h3>Half-duplex PTT</h3>
-  <p>Wi-Fi antennas cannot transmit and receive on the same frequency at the same time, so strict PTT is architecturally required, not a UX choice.</p>
-  <div class="grid2">
-    <div class="card"><h5>Pressed</h5><p>Stop listening, open the mic, encode, broadcast.</p></div>
-    <div class="card"><h5>Released</h5><p>Close the mic immediately; keep audio output open for inbound packets.</p></div>
-  </div>
-  <ul>
-    <li><strong>VAD.</strong> If the user holds PTT but stops speaking, detect silence and pause transmission — protects the network and the battery.</li>
-    <li><strong>Floor control.</strong> A temporary floor controller grants short, renewable speaking leases. Emergency traffic can pre-empt routine traffic. Partitioned groups operate independently; on reconnection, finish or terminate existing talkspurts before adopting one floor epoch.</li>
-    <li><strong>Targeted PTT.</strong> Selecting a specific node needs no new networking — it uses the existing <code>destNodeId</code> unicast addressing. Only the target plays audio; everyone else relays. Group PTT forwards over a bounded distribution tree: "broadcast" is application-level replication, not native multi-hop multicast.</li>
-  </ul>
-</section>
-
-<!-- 5 -->
-<section id="s5">
-  <h2><span class="n">05</span>Images and data transfer</h2>
-  <p class="kicker">Images have the inverted requirement: 100 % integrity, latency tolerant. Voice is the opposite.</p>
-  <div class="pipe"><span>Compress</span><span>Chunk</span><span>Sequence headers</span><span>Mesh transport</span><span>Reassemble &amp; verify</span></div>
-  <ol>
-    <li><strong>Never send raw bitmaps</strong> — compress to WebP (or JPEG) first: <code>bitmap.compress(Bitmap.CompressFormat.WEBP, 75, stream)</code></li>
-    <li><strong>Chunk to ~1 KB</strong> — below the typical 1500-byte MTU, so the OS never fragments unpredictably. For Wi-Fi UDP use a conservative <strong>1,200-byte application datagram ceiling</strong>.</li>
-    <li><strong>Wrap every chunk:</strong>
-<pre><code>data class ImageChunkPacket(
-    val imageId: String,   // unique per transfer
-    val totalChunks: Int,
-    val chunkIndex: Int,
-    val data: ByteArray    // 1 KB slice
-)</code></pre></li>
-    <li><strong>Transport choice:</strong>
-      <ul>
-        <li><strong>Hop-by-hop TCP (recommended):</strong> each hop transfers reliably; the intermediate node caches fully, then forwards. Needs storage at relays.</li>
-        <li><strong>UDP + ARQ:</strong> blast chunks; the receiver requests missing indices with small control packets. Faster, less relay memory.</li>
-      </ul></li>
-    <li><strong>Checkpointed resume:</strong> if a relay walks away mid-transfer, the sender saves its <code>chunkIndex</code>, waits for an alternate path, asks the receiver for its last verified chunk, and resumes — never from zero.</li>
-  </ol>
-</section>
-
-<!-- 6 -->
-<section id="s6">
-  <h2><span class="n">06</span>Tier 2 — inter-cluster bridge (ESP32 + LoRa)</h2>
-  <div class="callout red"><b class="t">The hard constraint</b><p><strong>An ESP32 cannot join a Wi-Fi Aware cluster.</strong> NAN lives in the Android Wi-Fi driver/firmware stack; Espressif's ESP-IDF does not expose it at all. Espressif's own ESP-WIFI-MESH is proprietary and phones cannot join that either. The ESP32 can only ever be a separate bridge/gateway node, attached to a phone by:</p>
-    <ul><li><strong>Classic Wi-Fi AP</strong> — a "cluster lead" phone connects like a normal hotspot (simplest, most reliable)</li><li><strong>BLE (GATT)</strong> — lower throughput, better battery, better for unattended multi-hour gateway operation</li></ul></div>
-  <h3>Firmware: Meshtastic, not custom</h3>
-  <p><strong>Meshtastic</strong> (open-source ESP32 + LoRa firmware, actively maintained) ships almost exactly what is needed: multi-hop LoRa mesh with managed flooding, GPS position sharing, text messaging, PSK/PKI channel encryption, and a community <strong>UDP bridge component</strong> that exposes the LoRa mesh over UDP — the integration point for the phone and backend. This turns the whole LoRa backbone from "write embedded mesh routing from scratch" into "deploy proven firmware and write a thin adapter".</p>
-  <h3>Payload constraint</h3>
-  <p><strong>Text, GPS and status codes only — no images, no voice.</strong> LoRa runs 0.3–27 kbps depending on spreading factor; even Codec 2's lowest mode plus LoRa overhead and duty-cycle limits makes usable voice unworkable. Standard SX126x operation caps a packet at <strong>255 bytes</strong>; use <strong>240 bytes</strong> as the normal application limit for headroom.</p>
-  <h3>Airtime — the real capacity limit</h3>
-  <p>LoRa must be managed in airtime, not packet count. At 125 kHz bandwidth, CR 4/5, explicit header, 8-symbol preamble:</p>
-  <div class="tbl"><table>
-    <thead><tr><th>Packet</th><th class="num">SF7</th><th class="num">SF9</th><th class="num">SF12</th></tr></thead>
-    <tbody>
-      <tr><td>164-byte telemetry</td><td class="num"><span class="bar green" style="width:11px"></span>0.266 s</td><td class="num"><span class="bar amber" style="width:34px"></span>0.841 s</td><td class="num"><span class="bar red" style="width:120px"></span>6.070 s</td></tr>
-      <tr><td>176-byte SOS</td><td class="num"><span class="bar green" style="width:12px"></span>0.282 s</td><td class="num"><span class="bar amber" style="width:36px"></span>0.902 s</td><td class="num"><span class="bar red" style="width:130px"></span>6.562 s</td></tr>
-      <tr><td>240-byte maximum</td><td class="num"><span class="bar green" style="width:15px"></span>0.379 s</td><td class="num"><span class="bar amber" style="width:48px"></span>1.189 s</td><td class="num"><span class="bar red" style="width:170px"></span>8.528 s</td></tr>
-    </tbody>
-  </table></div>
-  <p>Under a 1 % airtime allowance (36 transmit-seconds per hour) a transmitter could send only about <strong>42 telemetry packets an hour at SF9</strong> before reserving capacity for anything else. Therefore:</p>
-  <ul>
-    <li>Keep frequent individual position updates <strong>inside</strong> Wi-Fi clusters.</li>
-    <li>Backhaul only selected changes and <strong>compact cluster summaries</strong> — labelled as summaries, with gateway provenance; retain the original signed observations for later sync.</li>
-    <li>Use SF7/SF9 where link quality permits; treat SF12 as a low-capacity contingency.</li>
-    <li>Suspend routine telemetry when critical queues grow.</li>
-    <li>Prefer routes through designated repeaters. Routine telemetry must not flood every repeater; bounded duplicate forwarding with randomised suppression is for SOS only.</li>
-  </ul>
-  <div class="callout"><b class="t">Regulatory</b><p>India's WPC de-licensed band is <strong>865–867 MHz</strong>, with duty-cycle restrictions that must be confirmed before setting message intervals. Frequency, EIRP, duty cycle, dwell time and channel access all follow the deployment jurisdiction. Use <strong>raw LoRa, not LoRaWAN</strong> — LoRaWAN assumes a gateway/network-server architecture that does not fit this peer/repeater topology.</p></div>
-  <h3>The ESP32's two distinct roles</h3>
-  <div class="grid2">
-    <div class="card"><span class="tag t2">Role 1</span><h5>Dropped relay node</h5><p>Placed between two phones too far apart, extending reach <em>within</em> a cluster's path to command.</p></div>
-    <div class="card"><span class="tag t2">Role 2</span><h5>Cluster bridge</h5><p>Connecting two <em>separate</em> mesh clusters to each other. Same hardware, different purpose — keep them separate in write-ups.</p></div>
-  </div>
-  <h3>Gateway fail-over</h3>
-  <p>Because the ESP32 holds the physical LoRa link, <strong>the peripheral controls fail-over, not an election</strong> — a replacement phone must be physically connected by USB or within BLE range.</p>
-  <ol class="ladder">
-    <li><b>Provision at least two authorised gateway-capable phones per cluster.</b></li>
-    <li><b>The ESP32 keeps a single active attachment lease</b><span>with a monotonically increasing generation number.</span></li>
-    <li><b>The active phone heartbeats</b><span>initially every 2 s.</span></li>
-    <li><b>On lease expiry, candidates authenticate and request ownership.</b></li>
-    <li><b>The ESP32 selects</b><span>on external power, remaining battery, cluster reachability, then a deterministic tie-break.</span></li>
-    <li><b>The new phone exchanges queue inventories</b><span>and resumes delivery with the existing message IDs.</span></li>
-  </ol>
-  <p>Keep queued records on the ESP32 <em>and</em> on the originating phones. Lease generations fence out the old phone if it reconnects.</p>
-</section>
-
-<!-- 7 -->
-<section id="s7">
-  <h2><span class="n">07</span>Tier 3 — satellite link</h2>
-  <p><strong>Reference hardware:</strong> Iridium Short Burst Data, e.g. RockBLOCK 9603 (~$250–300 plus ~$15/month), simple UART interface. <strong>Payload:</strong> about 340 bytes mobile-originated, about 270 bytes mobile-terminated — coordinates and short instructions only.</p>
-  <div class="callout blue"><b class="t">Important correction</b><p>Satellite is not range-limited like LoRa. Iridium is low-orbit with near-global coverage; the real constraint is <strong>sky visibility</strong> — not blocked by buildings, canopy or being indoors. So the modem attaches to specific gateway nodes (likely 1–2 in total, cost-driven) and other clusters route to it over the LoRa backbone.</p></div>
-  <p><strong>Simulated for the hackathon.</strong> Build the real interface — the same message format and size cap a RockBLOCK exposes — and swap only the transport: route through the project's own backend, inject realistic latency (seconds to low minutes), enforce the 340-byte cap. Pitch framing: <em>"transport is simulated; gateway firmware is written against the same interface real hardware exposes — a drop-in swap, not a redesign."</em></p>
-  <p><strong>Why it was kept when cutting it was proposed.</strong> The argument for removal was that there is "always" a link to command. That fails precisely where this platform matters most — remote Western Ghats landslides, wide flood districts where command may be 50–200 km away through LoRa-degrading terrain, with no time to deploy a repeater chain mid-golden-hour. Since it is simulated anyway, keeping it costs nothing on build day but preserves coverage for the worst cases.</p>
-  <p><strong>Correct framing:</strong> LoRa is the default path; satellite is the fall-back for out-of-range command centres — not an always-on requirement.</p>
-</section>
-
-<!-- 8 -->
-<section id="s8">
-  <h2><span class="n">08</span>Tier 4 — adaptive online transition</h2>
-  <p class="kicker">Not a separate system — an extension of Tier 1 routing with "cloud" added as a possible destination. The named pattern is Delay/Disruption-Tolerant Networking (DTN): a real discipline (NASA deep-space comms, the IETF Bundle Protocol), worth citing.</p>
-  <ol class="ladder">
-    <li><b>Connectivity check</b><span><code>ConnectivityManager</code> + <code>NET_CAPABILITY_VALIDATED</code> — detects <em>real</em> internet, not just an active radio.</span></li>
-    <li><b>Transport priority ladder, per message</b><span>Direct internet/cellular → mesh peer with internet → local mesh → LoRa backbone → satellite (short emergency only).</span></li>
-    <li><b>Gateway auto-promotion</b><span>Any phone that regains internet broadcasts a small "I have internet" beacon into the mesh; peers' routing tables send cloud-bound traffic through it. Same next-hop logic, no new protocol. Works in both directions — it also carries inbound alerts <em>into</em> a dead zone.</span></li>
-    <li><b>Reconciliation sync</b><span>On reconnect, flush queued reports, images and the GPS trail in one batch.</span></li>
-  </ol>
-  <div class="callout green"><b class="t">Key property</b><p>The mesh is never torn down when internet returns — it stays live underneath as a resilience layer. A responder walking into a dead zone twenty minutes later does not drop off the map; they fall one rung down the same ladder automatically. <strong>The network has a quality gradient, not an on/off state.</strong></p></div>
-  <h3>When cellular is available</h3>
-  <p>Traffic routes through the cloud backend directly, and PTT shifts to a cloud-relayed voice channel: client → own server → client(s). This is simpler than mesh PTT, not harder:</p>
-  <ul>
-    <li><strong>Same Codec 2 pipeline</strong> — only the destination changes.</li>
-    <li><strong>No WebRTC / STUN / TURN.</strong> The server has a public address, so both clients connect to it — client-server, not peer-to-peer NAT traversal.</li>
-    <li><strong>Floor control becomes trivial</strong> — one server-side flag instead of distributed agreement across peers.</li>
-    <li><strong>It is an upgrade.</strong> On the mesh two responders need a physical hop-chain between them; over cellular any two responders can talk regardless of distance.</li>
-  </ul>
-  <div class="callout"><b class="t">Build sequencing tip</b><p>Build and test cloud PTT <strong>first</strong>, over ordinary Wi-Fi with a laptop as the server, before touching Wi-Fi Aware. It de-risks the audio pipeline early and produces a demoable voice feature fast.</p></div>
-</section>
-
-<!-- 9 -->
-<section id="s9">
-  <h2><span class="n">09</span>Alert delivery into a dead zone</h2>
-  <p class="kicker">Sensor data reaching the backend is usually not blocked by local damage — IMD, GSI and CWC report over their own national telemetry networks, not local cell towers. The real bottleneck is the backend reaching responders already inside a dead zone.</p>
-  <p>Three paths, no new subsystem:</p>
-  <div class="grid3">
-    <div class="card"><span class="tag ok">Most realistic</span><h5>Patchy infrastructure</h5><p>Disasters rarely kill connectivity uniformly. The alert reaches whichever device still has signal; that device auto-promotes to gateway (Tier 4 logic running inbound) and floods the alert into the mesh.</p></div>
-    <div class="card"><h5>Total local blackout</h5><p>The alert is injected at the LoRa/satellite tier from outside the dead zone and floods down through the same managed-flooding relay.</p></div>
-    <div class="card"><h5>Pre-loaded static risk</h5><p>Baseline risk classification is known before deployment, so cache it on devices at mission briefing — a responder entering a known High-risk zone has that context even in a worst-case blackout.</p></div>
-  </div>
-  <div class="callout"><b class="t">One addition required</b><p>The packet design is unicast-oriented (<code>destNodeId</code>). Alerts need a <strong>broadcast message type</strong> — the same TTL/dedup/flood logic, but every node treats itself as the recipient.</p></div>
-</section>
-
-<!-- 10 -->
-<section id="s10">
-  <h2><span class="n">10</span>Range — the honest picture</h2>
-  <p><strong>Radio power cannot be boosted on stock phones.</strong> "Range extension" is not a software feature. The real levers:</p>
-  <div class="grid3">
-    <div class="card"><h5>Hop density</h5><p>More responders spread out, each relaying, extends coverage. Per-hop range stays ~100–200 m.</p></div>
-    <div class="card"><h5>Elevation</h5><p>Line of sight dominates. A phone or gateway on a vehicle roof or high ground dramatically increases reach.</p></div>
-    <div class="card"><h5>ESP32 relay drops</h5><p>Physically placing a node in a gap too wide for two phones.</p></div>
-  </div>
-  <p><strong>Build mesh topology visualisation instead of claiming range boosting.</strong> A live view of discovered vs. connected peers, link quality, route hops, gateways and partition boundaries lets a coordinator say <em>"move to that ridge"</em> to bridge a gap. It is a real operational tool and a strong demo moment — the mesh healing itself. (This is what the <a href="../index.html">command console</a> does.)</p>
-  <div class="callout red"><b class="t">Do not</b><p>Infer peer signal strength from the phone's unrelated infrastructure-network RSSI. Where direct peer measurement is not available, show a clearly labelled <em>delivery-quality estimate</em>, not a fake signal bar.</p></div>
-  <p><strong>Repeater antenna placement:</strong> above obstructions. Non-line-of-sight range must be measured, not assumed from open-field specifications.</p>
-</section>
-
-<!-- 11 -->
-<section id="s11">
-  <h2><span class="n">11</span>Priority and queueing</h2>
-  <div class="tbl"><table>
-    <thead><tr><th>Priority</th><th>Traffic</th><th>Queue behaviour</th></tr></thead>
-    <tbody>
-      <tr><td class="k" style="color:var(--red)">P0</td><td>SOS, urgent withdrawal, emergency receipts</td><td>Reserved storage and airtime; bounded duplicate paths</td></tr>
-      <tr><td class="k" style="color:var(--amber)">P1</td><td>Task assignments, acknowledgements, critical resource changes</td><td>Reliable forwarding, selective retry</td></tr>
-      <tr><td class="k" style="color:var(--gold-2)">P2</td><td>Positions, routine status</td><td>Coalesce pending updates; keep the latest useful sample</td></tr>
-      <tr><td class="k" style="color:var(--ink-3)">P3</td><td>History, diagnostics, bulk sync</td><td>Only with spare capacity</td></tr>
-    </tbody>
-  </table></div>
-  <p>Within P0, apply <strong>per-origin fairness</strong> so one faulty device cannot starve other emergencies. <strong>If durable storage is unavailable, never issue a false custody receipt.</strong></p>
-</section>
-
-<!-- 12 -->
-<section id="s12">
-  <h2><span class="n">12</span>Security on the mesh</h2>
-  <ul>
-    <li><strong>Wi-Fi Aware tier:</strong> AES-256 at the packet layer; keys provisioned during mission briefing, not negotiated live.</li>
-    <li><strong>LoRa tier:</strong> Meshtastic's built-in PSK/PKI channel encryption — free, no extra work.</li>
-    <li><strong>Backend / satellite:</strong> standard TLS in transit, encryption at rest.</li>
-    <li><strong>Authentication without connectivity:</strong> identity provisioned <em>before</em> deployment (QR / pre-registration), never requiring a live login — mandatory given the zero-connectivity premise.</li>
-  </ul>
-  <div class="callout green"><b class="t">Provisioning as a feature, not a weakness</b><p><em>"Devices are provisioned during mission briefing, so only authorised multi-agency responder devices join the network."</em> Better than open-join, which is a genuine security concern for a tactical network.</p></div>
-  <p><strong>Nonce discipline:</strong> derive keys by incident, sender, audience and key epoch; construct the nonce from boot epoch and sequence. <strong>Persist epoch advancement before sending</strong> — never reuse a nonce after a reset, reinstall or counter roll-over.</p>
-</section>
-
-<!-- 13 -->
-<section id="s13">
-  <h2><span class="n">13</span>Failure modes to test</h2>
-  <div class="tbl"><table>
-    <thead><tr><th>Failure</th><th>Required evidence</th></tr></thead>
-    <tbody>
-      <tr><td class="k">Full infrastructure outage</td><td>5 hours of local maps, dispatch, SOS, qualified PTT</td></tr>
-      <tr><td class="k">Gateway phone power loss</td><td>Replacement attaches, recovers queues, loses no acknowledged critical records</td></tr>
-      <tr><td class="k">Gateway hardware loss</td><td>Secondary kit restores egress; the outage is visible meanwhile</td></tr>
-      <tr><td class="k">Partition and rejoin</td><td>Observations converge; conflicting assignments stay visible</td></tr>
-      <tr><td class="k">Duplicate / reordered delivery</td><td>No duplicate task execution, no state regression</td></tr>
-      <tr><td class="k">Radio saturation</td><td>Routine updates yield; SOS gets reserved capacity; overload is visible</td></tr>
-      <tr><td class="k">Clock drift and reboot</td><td>No nonce reuse; no expired command becomes executable</td></tr>
-      <tr><td class="k">Noise and mobility</td><td>Measured PTT intelligibility and latency on real field routes</td></tr>
-    </tbody>
-  </table></div>
-</section>
-
-<!-- 14 -->
-<section id="s14">
-  <h2><span class="n">14</span>Engineering targets</h2>
-  <div class="tbl"><table>
-    <thead><tr><th>Operation</th><th>Initial target</th></tr></thead>
-    <tbody>
-      <tr><td class="k">Local position update</td><td>Every 5–10 s while moving; less when stationary</td></tr>
-      <tr><td class="k">SOS presentation</td><td>p95 under 2 s on an established route up to 3 Wi-Fi hops</td></tr>
-      <tr><td class="k">PTT mouth-to-ear latency</td><td>p95 under 500 ms within qualified topology</td></tr>
-      <tr><td class="k">Gateway-phone recovery</td><td>Under 20 s when a replacement can physically reach the gateway</td></tr>
-      <tr><td class="k">LoRa / cloud freshness</td><td>Capacity-dependent — <strong>always display sample age</strong></td></tr>
-      <tr><td class="k">Autonomous operation</td><td>At least 5 hours without charging</td></tr>
-    </tbody>
-  </table></div>
-  <p><strong>Qualification envelope:</strong> 100 responders in 5 logical clusters of ~20 phones. This is a test target, not an assumed Wi-Fi Aware device limit.</p>
-</section>
-
-<!-- 15 -->
-<section id="s15">
-  <h2><span class="n">15</span>Demo strategy</h2>
-  <p class="kicker">Live mesh demos are notoriously flaky on stage — RF interference from hundreds of competing devices at a hackathon venue is a real, common problem.</p>
-  <ul>
-    <li><strong>Always have a pre-recorded backup video</strong> of the multi-device relay working. Standard practice, not a red flag to judges.</li>
-    <li><strong>Lead with the mesh topology visualisation</strong> — it makes the invisible visible and shows self-healing.</li>
-    <li><strong>Build cloud PTT first</strong> so a working voice feature exists early, independent of mesh reliability.</li>
-    <li><strong>Be honest about what is simulated</strong> (satellite). Staged honesty scores better than unverifiable claims.</li>
-  </ul>
-</section>
-
-<!-- 16 -->
-<section id="s16">
-  <h2><span class="n">16</span>Open items</h2>
-  <ul class="todo">
-    <li><span class="box"></span><div><b>Confirm WPC duty-cycle limits for 865–867 MHz</b><span class="why">before setting LoRa message intervals.</span></div></li>
-    <li><span class="box"></span><div><b>Assign an embedded/firmware owner</b><span class="why">ESP32 + Meshtastic configuration + NDK Codec 2 compile is a distinct skill track from the team's AI/ML–web–GIS core.</span></div></li>
-    <li><span class="box"></span><div><b>Verify Wi-Fi Aware support on the target demo devices</b><span class="why">NAN needs manufacturer firmware support, not just Android 8+.</span></div></li>
-    <li><span class="box"></span><div><b>Add a broadcast message type to the packet spec</b><span class="why">for inbound alerts.</span></div></li>
-    <li><span class="box"></span><div><b>Define the key-provisioning workflow</b><span class="why">who generates and distributes mission keys, and when.</span></div></li>
-    <li><span class="box"></span><div><b>Build mesh topology visualisation as a first-class feature</b><span class="why">not an afterthought — the console's operations map is the start of this.</span></div></li>
-    <li><span class="box"></span><div><b>Measure actual concurrent-NDP limits on the chosen handsets</b><span class="why">the spec says 4–6; verify.</span></div></li>
-  </ul>
-</section>
-
-</main>
-</div>
-
-<footer><div class="in"><span>RescueLINK · Smart India Hackathon 2026 · Team ANTIMATTER</span><span><a href="../index.html">Command console</a> · <a href="https://github.com/joythomasl/RescueLINK">Source on GitHub</a></span></div></footer>
-
-<script>
-(function () {
-  // theme toggle (shared localStorage key with the console)
-  var btn = document.getElementById("theme-toggle");
-  function paint() { var dark = document.documentElement.getAttribute("data-theme") === "dark"; btn.innerHTML = '<span aria-hidden="true">' + (dark ? "☀" : "☾") + "</span>" + (dark ? "Light" : "Dark"); btn.setAttribute("aria-pressed", dark ? "true" : "false"); }
-  btn.addEventListener("click", function () { var t = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark"; document.documentElement.setAttribute("data-theme", t); try { localStorage.setItem("rl_theme", t); } catch (e) {} paint(); });
-  paint();
-  // table of contents highlight
-  var links = Array.prototype.slice.call(document.querySelectorAll(".toc a"));
-  var secs = links.map(function (a) { return document.querySelector(a.getAttribute("href")); });
-  function onScroll() {
-    var y = window.scrollY + 90, idx = 0;
-    secs.forEach(function (s, i) { if (s && s.offsetTop <= y) idx = i; });
-    links.forEach(function (a, i) { a.classList.toggle("on", i === idx); });
-  }
-  window.addEventListener("scroll", onScroll, { passive: true }); onScroll();
-})();
-</script>
+<script src="sim.js"></script>
 </body>
 </html>

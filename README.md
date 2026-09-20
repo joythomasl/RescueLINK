@@ -3,7 +3,7 @@
 Cross-agency coordination console for the first hours after a disaster, when cellular and radio infrastructure is down. Built for Smart India Hackathon 2026 (SIH26206, Disaster Management) by Team ANTIMATTER.
 
 **Live demo:** https://joythomasl.github.io/RescueLINK/
-**Mesh communication reference:** https://joythomasl.github.io/RescueLINK/mesh/ — the four transport tiers, why each technology was chosen, packet formats, failure modes and open items.
+**Mesh communication simulator:** https://joythomasl.github.io/RescueLINK/mesh/ — eleven interactive scenarios covering every mechanism in the design: leaderless clusters vs. a Group Owner, managed flooding with TTL and dedup, Codec 2 PTT under loss/jitter, chunked images with checkpointed resume, LoRa airtime and duty cycle, ESP32 gateway fail-over, satellite fall-back, DTN gateway auto-promotion, alerts into a dead zone, priority queues, partition and rejoin. Append `,auto` to a scenario hash (e.g. `#ptt,auto`) for a hands-off run.
 
 ## What it shows
 
