@@ -3,6 +3,7 @@
 Cross-agency coordination console for the first hours after a disaster, when cellular and radio infrastructure is down. Built for Smart India Hackathon 2026 (SIH26206, Disaster Management) by Team ANTIMATTER.
 
 **Live demo:** https://joythomasl.github.io/RescueLINK/
+**Mesh communication reference:** https://joythomasl.github.io/RescueLINK/mesh/ — the four transport tiers, why each technology was chosen, packet formats, failure modes and open items.
 
 ## What it shows
 
