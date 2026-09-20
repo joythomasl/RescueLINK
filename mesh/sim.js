@@ -102,7 +102,7 @@
   let last = performance.now(), logDirty = true, metricT = 0;
   function frame(now) {
     const real = Math.min(50, now - last); last = now;
-    try { advance(real); } catch (err) { console.error(err); log("Simulator error: " + err.message, "bad"); E.paused = true; }
+    try { advance(real); } catch (err) { console.error(err); log("Something went wrong in the simulator: " + err.message, "bad"); E.paused = true; }
     if (logDirty) { renderLog(); logDirty = false; }
     draw(); setTimeout(() => frame(performance.now()), 16);
   }
@@ -153,7 +153,7 @@
   function renderSteps() {
     $("steps").innerHTML = E.sc.steps.map((s, i) => '<i class="' + (i < E.step ? "done" : i === E.step ? "cur" : "") + '"></i>').join("");
     $("narr").innerHTML = E.step < 0 ? E.sc.intro : E.sc.steps[E.step].text;
-    $("btn-next").disabled = E.step >= E.sc.steps.length - 1; $("btn-next").textContent = E.step < 0 ? "Start →" : E.step >= E.sc.steps.length - 1 ? "Done" : "Next step →";
+    $("btn-next").disabled = E.step >= E.sc.steps.length - 1; $("btn-next").textContent = E.step < 0 ? "Start →" : E.step >= E.sc.steps.length - 1 ? "Finished" : "Next →";
   }
   function nextStep() { if (E.step >= E.sc.steps.length - 1) return; E.step++; stepAt = E.t; const s = E.sc.steps[E.step]; if (s.run) s.run(); renderSteps(); renderMetrics(); }
   function load(sc) {
@@ -173,13 +173,13 @@
 
   // ---------- 1. Leaderless cluster ----------
   S.push({
-    id: "leaderless", group: "Tier 1 — Wi-Fi Aware", tier: "Tier 1 · leaderless cluster", title: "A cluster with nobody in charge",
-    blurb: "Seven phones discover each other over Wi-Fi Aware and link to every peer in range. There is no owner, no coordinator, no election. Knock phones out and the rest keep talking through whatever paths remain.",
-    hint: "Click any phone to knock it out. Click again to bring it back.",
-    intro: "Position updates (small green packets) flood through the cluster every couple of seconds. <b>Start</b> to see how the cluster copes with losing phones.",
+    id: "leaderless", group: "Phones talking to phones", tier: "Step 1 · a group with no leader", title: "A group of phones with no leader",
+    blurb: "Seven phones find each other on their own and link to every phone nearby. No phone is the boss. Knock some out and the rest keep talking through whatever links are left.",
+    hint: "Click a phone to switch it off. Click again to switch it back on.",
+    intro: "The small green dots are location updates passing between phones. Press <b>Start</b> to see what happens when phones are lost.",
     controls: [
-      { id: "range", type: "range", label: "Wi-Fi Aware range", min: 180, max: 340, step: 10, value: 310, unit: " px", desc: "~100–200 m per hop in the field, depending on obstructions. Shorter range = sparser mesh." },
-      { id: "reset", type: "buttons", buttons: [{ id: "revive", label: "Bring everyone back" }] }
+      { id: "range", type: "range", label: "How far a phone can reach", min: 180, max: 340, step: 10, value: 310, unit: " px", desc: "About 100–200 m in real life, less with walls in the way. Shorter reach = fewer links." },
+      { id: "reset", type: "buttons", buttons: [{ id: "revive", label: "Switch everyone back on" }] }
     ],
     st: {}, setup() {
       const s = this.st; s.delivered = 0; s.emit = 0; s.alive = 7; s.reach = 7; s.outage = 0;
@@ -187,10 +187,10 @@
       this.rebuild();
     },
     rebuild() { E.links.length = 0; meshByRange(E.nodes.map(n => n.id), E.C.range || 310, "wifi"); },
-    onControl(id) { if (id === "range") { this.rebuild(); } if (id === "revive") { E.nodes.forEach(n => revive(n.id)); this.rebuild(); log("All phones back online", "ok"); } },
+    onControl(id) { if (id === "range") { this.rebuild(); } if (id === "revive") { E.nodes.forEach(n => revive(n.id)); this.rebuild(); log("All phones are back on", "ok"); } },
     onNodeClick(n) {
-      if (n.alive) { kill(n.id); log(n.id + " knocked out — only its own links disappear", "bad"); }
-      else { revive(n.id); log(n.id + " back online — rediscovered by its neighbours, no priming needed", "ok"); }
+      if (n.alive) { kill(n.id); log(n.id + " switched off — only its own links are lost", "bad"); }
+      else { revive(n.id); log(n.id + " back on — its neighbours found it again by themselves", "ok"); }
       this.rebuild();
     },
     tick(dt) {
@@ -201,25 +201,25 @@
       if (alive.length && s.reach < alive.length) s.outage += dt;
     },
     onArrive(n, p) { const { pid, ttl } = p.payload; if (!pid || n.seen.has(pid)) return; n.seen.add(pid); this.st.delivered++; if (ttl > 0) flood(n.id, p.from, { color: css("--green"), r: 4, payload: { pid, ttl: ttl - 1 } }); },
-    metrics() { const s = this.st; return [{ label: "phones alive", value: s.alive + " / 7" }, { label: "largest connected group", value: s.reach + " / " + s.alive, cls: s.reach < s.alive ? "bad" : "good" }, { label: "time partitioned", value: fmtT(s.outage), cls: s.outage ? "warn" : "good" }, { label: "beacons delivered", value: s.delivered }]; },
+    metrics() { const s = this.st; return [{ label: "phones on", value: s.alive + " / 7" }, { label: "phones that can reach each other", value: s.reach + " / " + s.alive, cls: s.reach < s.alive ? "bad" : "good" }, { label: "time the group was split", value: fmtT(s.outage), cls: s.outage ? "warn" : "good" }, { label: "updates delivered", value: s.delivered }]; },
     steps: [
-      { text: "<b>Discovery, not connection.</b> Each phone publishes a service name and subscribes to the same one. Any pair within range gets a link — no access point, no owner, no QR codes or BLE priming.", run() { } },
-      { text: "<b>Knock out P1.</b> Only P1's own links vanish. Beacons keep flooding through everyone else; nothing waits for an election.", run() { E.sc.onNodeClick(byId.P1); } },
-      { text: "<b>Take out two more.</b> P3 and P5 drop. The cluster stays connected through the remaining paths — this is what \"if one device drops, the network must not collapse\" looks like.", run() { E.sc.onNodeClick(byId.P3); E.sc.onNodeClick(byId.P5); } },
-      { text: "<b>Range is the real limit.</b> Shorten the Wi-Fi Aware range and the mesh thins out until it splits — a partition, not a collapse: each side keeps working (see the partition scenario). The fix in the field is hop density and elevation, not radio power.", run() { setControl("range", 200); E.sc.rebuild(); } },
-      { text: "<b>Recovery is automatic.</b> Bring the phones back: they are rediscovered by their neighbours and rejoin without any manual step. Try clicking phones yourself.", run() { setControl("range", 310); E.sc.onControl("revive"); } }
+      { text: "<b>Phones find each other by themselves.</b> Any two phones close enough get a link. Nobody is in charge, and nobody has to scan a code or set anything up.", run() { } },
+      { text: "<b>Switch off P1.</b> Only P1's own links are lost. The updates keep flowing through everyone else. Nothing stops.", run() { E.sc.onNodeClick(byId.P1); } },
+      { text: "<b>Switch off two more.</b> P3 and P5 go too. The rest are still all connected through the links that are left. Losing a phone never brings the group down.", run() { E.sc.onNodeClick(byId.P3); E.sc.onNodeClick(byId.P5); } },
+      { text: "<b>Distance is the real limit.</b> Shorten the reach and the links thin out until the group splits in two. Each half keeps working on its own. In the field, the fix is more phones in between, or higher ground — not a stronger radio.", run() { setControl("range", 200); E.sc.rebuild(); } },
+      { text: "<b>Coming back is automatic.</b> Switch the phones back on and their neighbours pick them up again. Nobody has to do anything. Try clicking phones yourself.", run() { setControl("range", 310); E.sc.onControl("revive"); } }
     ]
   });
 
   // ---------- 2. Managed flooding ----------
   S.push({
-    id: "flooding", group: "Tier 1 — Wi-Fi Aware", tier: "Tier 1 · routing layer", title: "Managed flooding, TTL and the dedup cache",
-    blurb: "There is no route table. A packet is sent down every path; the first copy to arrive wins and every later duplicate is dropped by a rolling cache of seen packet IDs. TTL stops the storm.",
-    hint: "Use the controls to send a packet from A to I. Try TTL 2, then switch the dedup cache off.",
-    intro: "Nine phones, meshed by range. <b>Start</b> to send a packet from <b>A</b> to <b>I</b> and watch the copies fan out.",
+    id: "flooding", group: "Phones talking to phones", tier: "Step 1 · how a message finds its way", title: "How a message finds its way",
+    blurb: "No phone knows the whole map. So a message is simply passed to every neighbour, and they pass it on. The first copy to arrive wins; repeats are thrown away. A hop counter stops it going on forever.",
+    hint: "Send a message from A to I. Then try a hop limit of 2, and try turning off the repeat check.",
+    intro: "Nine phones linked by distance. Press <b>Start</b> to send a message from <b>A</b> to <b>I</b> and watch the copies spread.",
     controls: [
-      { id: "ttl", type: "range", label: "hopLimit (TTL)", min: 1, max: 8, value: 5, desc: "Decremented at every relay; the packet is dropped at 0." },
-      { id: "dedup", type: "switch", label: "Dedup cache (~50 packetIds)", value: true, desc: "Off = a relay forwards every copy it receives, even ones it has already relayed." },
+      { id: "ttl", type: "range", label: "Hop limit", min: 1, max: 8, value: 5, desc: "Goes down by one at every phone. At zero the message is dropped." },
+      { id: "dedup", type: "switch", label: "Repeat check (remember seen messages)", value: true, desc: "Off = a phone passes on every copy it gets, even ones it has passed on before." },
       { id: "send", type: "buttons", buttons: [{ id: "sendAI", label: "Send A → I", cls: "primary" }, { id: "clear", label: "Clear" }] }
     ],
     st: {}, setup() {
@@ -233,39 +233,39 @@
       const s = this.st; E.nodes.forEach(n => { n.seen.clear(); n.badge = ""; }); Object.assign(s, { copies: 0, dup: 0, ttlDrop: 0, delivered: null, hops: null, sentAt: E.t, pid: "pkt-" + (++s.seq) });
       byId.A.seen.add(s.pid);
       s.copies += flood("A", null, { color: css("--gold"), label: "ttl " + (E.C.ttl - 1), payload: { pid: s.pid, ttl: E.C.ttl - 1, hops: 1 } });
-      log("A floods " + s.pid + " to " + neighbors("A").length + " neighbours, hopLimit " + E.C.ttl, "sys");
+      log("A sends the message to its " + neighbors("A").length + " neighbours, hop limit " + E.C.ttl, "sys");
     },
     onArrive(n, p) {
       const s = this.st, { pid, ttl, hops } = p.payload; if (pid !== s.pid) return;
-      if (n.id === "I") { if (s.delivered == null) { s.delivered = E.t - s.sentAt; s.hops = hops; n.badge = "DELIVERED"; n.badgeColor = css("--green"); log("I received " + pid + " after " + hops + " hops in " + fmtT(s.delivered) + " — first copy wins", "ok"); } else { s.dup++; } return; }
-      if (E.C.dedup && n.seen.has(pid)) { s.dup++; n.badge = "dup ×" + (++n.dups || 1); n.badgeColor = css("--ink-3"); return; }
+      if (n.id === "I") { if (s.delivered == null) { s.delivered = E.t - s.sentAt; s.hops = hops; n.badge = "DELIVERED"; n.badgeColor = css("--green"); log("I got the message after " + hops + " hops in " + fmtT(s.delivered) + " — the first copy wins", "ok"); } else { s.dup++; } return; }
+      if (E.C.dedup && n.seen.has(pid)) { s.dup++; n.badge = "repeat ×" + (++n.dups || 1); n.badgeColor = css("--ink-3"); return; }
       n.seen.add(pid); n.dups = 0;
-      if (ttl <= 0) { s.ttlDrop++; n.badge = "TTL 0"; n.badgeColor = css("--red"); return; }
+      if (ttl <= 0) { s.ttlDrop++; n.badge = "hops used up"; n.badgeColor = css("--red"); return; }
       s.copies += flood(n.id, p.from, { color: css("--gold"), label: "ttl " + (ttl - 1), payload: { pid, ttl: ttl - 1, hops: hops + 1 } });
-      if (s.copies > 400) { E.packets.length = 0; log("Packet storm cut off at 400 copies — this is what TTL and the dedup cache exist to prevent.", "bad"); }
+      if (s.copies > 400) { E.packets.length = 0; log("Stopped at 400 copies — this flood is exactly what the hop limit and repeat check prevent.", "bad"); }
     },
-    metrics() { const s = this.st; return [{ label: "copies transmitted", value: s.copies, cls: s.copies > 60 ? "bad" : "" }, { label: "duplicates dropped", value: s.dup }, { label: "dropped at TTL 0", value: s.ttlDrop }, { label: "delivered to I", value: s.delivered == null ? "—" : fmtT(s.delivered) + " · " + s.hops + " hops", cls: s.delivered == null ? "" : "good" }, { label: "in flight", value: E.packets.length }]; },
+    metrics() { const s = this.st; return [{ label: "copies sent", value: s.copies, cls: s.copies > 60 ? "bad" : "" }, { label: "repeats thrown away", value: s.dup }, { label: "dropped — hops used up", value: s.ttlDrop }, { label: "reached I", value: s.delivered == null ? "—" : fmtT(s.delivered) + " · " + s.hops + " hops", cls: s.delivered == null ? "" : "good" }, { label: "on the way now", value: E.packets.length }]; },
     steps: [
-      { text: "<b>Send A → I with TTL 5.</b> A hands the packet to every neighbour. Each relay checks: is it for me? TTL left? seen this packetId? — then forwards to everyone except where it came from.", run() { E.sc.fire(); } },
-      { text: "<b>First copy wins.</b> I got the packet over the shortest path; the copies still arriving are dropped as duplicates. Relays that saw the ID twice show a <b>dup</b> badge. Note how few copies it took overall.", run() { } },
-      { text: "<b>TTL too low.</b> Same packet with hopLimit 2. The packet dies two hops out and never reaches I — TTL bounds the flood, so it has to cover the longest path you need (three Wi-Fi hops is the qualification target).", run() { setControl("ttl", 2); E.sc.fire(); } },
-      { text: "<b>Dedup cache off, TTL 6.</b> Every relay now forwards every copy it receives, including ones bouncing back. Watch the copy count climb — this is a packet storm, and it only stops because TTL runs out.", run() { setControl("ttl", 6); setControl("dedup", false); E.sc.fire(); } },
-      { text: "<b>Back to normal.</b> Dedup on, TTL 5. Same delivery, a fraction of the traffic. Flooding is only cheap because of these two checks.", run() { setControl("dedup", true); setControl("ttl", 5); E.sc.fire(); } }
+      { text: "<b>Send A → I with a hop limit of 5.</b> A gives the message to every neighbour. Each phone asks three things: is it for me? any hops left? have I seen it before? Then it passes it on to everyone except the phone it came from.", run() { E.sc.fire(); } },
+      { text: "<b>The first copy wins.</b> I got the message by the shortest path. The copies still arriving are thrown away. Phones that saw the same message twice show a <b>repeat</b> tag. Notice how few copies it took.", run() { } },
+      { text: "<b>Hop limit too small.</b> The same message with a limit of 2. It dies two phones out and never reaches I. The limit has to be big enough for the longest path you need — three hops is the target.", run() { setControl("ttl", 2); E.sc.fire(); } },
+      { text: "<b>Repeat check off, hop limit 6.</b> Now every phone passes on every copy, even ones bouncing back. Watch the copy count climb. This is a flood, and it only stops because the hops run out.", run() { setControl("ttl", 6); setControl("dedup", false); E.sc.fire(); } },
+      { text: "<b>Back to normal.</b> Repeat check on, hop limit 5. Same result, a fraction of the traffic. These two simple checks are what make this cheap.", run() { setControl("dedup", true); setControl("ttl", 5); E.sc.fire(); } }
     ]
   });
 
   // ---------- 3. PTT voice ----------
   S.push({
-    id: "ptt", group: "Tier 1 — Wi-Fi Aware", tier: "Voice · Codec 2 push-to-talk", title: "PTT across three hops with loss, jitter and a dropped relay",
-    blurb: "A talks, D listens, three hops apart with an alternate path. 80 ms Codec 2 datagrams (128 B on the wire) flood along both paths; D dedups, buffers, plays or conceals. Mouth-to-ear target: p95 under 500 ms.",
-    hint: "Hold PTT with the switch. Add loss and jitter; then drop the B–C link.",
-    intro: "Two paths from A to D: A–B–C–D and A–E–F–D. <b>Start</b> to press PTT.",
+    id: "ptt", group: "Phones talking to phones", tier: "Voice · push-to-talk", title: "Talking over three phones in between",
+    blurb: "A talks, D listens. There are three phones in between and two possible paths. Every 80 ms a tiny piece of voice is sent along both paths. D keeps the first copy, waits a moment to smooth things out, then plays it. Goal: the delay from mouth to ear stays under half a second.",
+    hint: "Hold the talk button with the switch. Add loss and delay; then cut the link between B and C.",
+    intro: "Two paths from A to D: A–B–C–D and A–E–F–D. Press <b>Start</b> to begin talking.",
     controls: [
-      { id: "talk", type: "switch", label: "PTT held (A talking)", value: false },
-      { id: "loss", type: "range", label: "Per-link loss", min: 0, max: 30, value: 0, unit: " %" },
-      { id: "jitter", type: "range", label: "Per-link jitter", min: 0, max: 150, value: 0, unit: " ms" },
-      { id: "buf", type: "range", label: "Jitter buffer", min: 80, max: 240, step: 10, value: 120, unit: " ms", desc: "Playout waits this long behind the first frame. Adaptive 80–240 ms in the design." },
-      { id: "wall", type: "switch", label: "Wall between B and C", value: false, desc: "Drops the B–C link mid-talkspurt." }
+      { id: "talk", type: "switch", label: "Talk button held (A speaking)", value: false },
+      { id: "loss", type: "range", label: "Pieces lost on each link", min: 0, max: 30, value: 0, unit: " %" },
+      { id: "jitter", type: "range", label: "Uneven delay on each link", min: 0, max: 150, value: 0, unit: " ms" },
+      { id: "buf", type: "range", label: "Smoothing wait before playing", min: 80, max: 240, step: 10, value: 120, unit: " ms", desc: "D waits this long before playing, so uneven arrivals sound smooth. The app adjusts this between 80 and 240 ms." },
+      { id: "wall", type: "switch", label: "Wall between B and C", value: false, desc: "Cuts the B–C link while A is talking." }
     ],
     st: {}, setup() {
       const s = this.st; Object.assign(s, { seq: 0, acc: 0, rx: {}, played: 0, concealed: 0, late: 0, dup: 0, lat: [], first: null, buffered: 0 });
@@ -273,7 +273,7 @@
       link("A", "B"); link("B", "C"); link("C", "D"); link("A", "E", "wifi", { delay: 55 }); link("E", "F", "wifi", { delay: 55 }); link("F", "D", "wifi", { delay: 55 });
       byId.A.ring = css("--gold"); byId.D.ring = css("--violet");
     },
-    onControl(id, v) { if (id === "wall") { linkBetween("B", "C").up = !v; log(v ? "Wall: B–C link dropped mid-talkspurt" : "B–C link restored", v ? "bad" : "ok"); } if (id === "talk") { byId.A.badge = v ? "PTT · TX" : ""; byId.A.badgeColor = css("--red"); if (v) { this.st.first = null; log("PTT pressed — A stops listening, opens the mic, encodes 1600 bit/s Codec 2", "sys"); } else log("PTT released — mic closed, output stays open", "sys"); } },
+    onControl(id, v) { if (id === "wall") { linkBetween("B", "C").up = !v; log(v ? "Wall: the B–C link is cut while A is talking" : "B–C link is back", v ? "bad" : "ok"); } if (id === "talk") { byId.A.badge = v ? "TALKING" : ""; byId.A.badgeColor = css("--red"); if (v) { this.st.first = null; log("Talk button pressed — A stops listening and starts sending tiny voice pieces", "sys"); } else log("Talk button released — A's mic closes, it can hear again", "sys"); } },
     tick(dt) {
       const s = this.st; E.links.forEach(l => { l.loss = E.C.loss / 100; });
       if (E.C.talk) { s.acc += dt; while (s.acc >= 80) { s.acc -= 80; const seq = s.seq++; const t0 = E.t; flood("A", null, { color: css("--red"), r: 4, jitter: E.C.jitter, payload: { seq, t0 } }); } }
@@ -296,25 +296,25 @@
       if (n.seen.has("v" + seq)) return; n.seen.add("v" + seq); if (n.seen.size > 60) n.seen.delete(n.seen.values().next().value);
       flood(n.id, p.from, { color: css("--red"), r: 4, jitter: E.C.jitter, payload: { seq, t0 } });
     },
-    metrics() { const s = this.st; const p = Math.round(p95(s.lat)); const tot = s.played + s.concealed || 1; return [{ label: "mouth-to-ear p95", value: (s.lat.length ? p + " ms" : "—"), cls: p > 500 ? "bad" : p ? "good" : "", bar: p / 5, barCls: p > 500 ? "red" : "green" }, { label: "frames played", value: s.played }, { label: "concealed (loss)", value: s.concealed + " · " + Math.round(s.concealed / tot * 100) + "%", cls: s.concealed / tot > .05 ? "bad" : "" }, { label: "late — discarded", value: s.late }, { label: "duplicates dropped at D", value: s.dup }, { label: "jitter buffer fill", value: s.buffered + " frames", bar: s.buffered / (E.C.buf / 80 + 2) * 100 }]; },
+    metrics() { const s = this.st; const p = Math.round(p95(s.lat)); const tot = s.played + s.concealed || 1; return [{ label: "delay, mouth to ear", value: (s.lat.length ? p + " ms" : "—"), cls: p > 500 ? "bad" : p ? "good" : "", bar: p / 5, barCls: p > 500 ? "red" : "green" }, { label: "pieces played", value: s.played }, { label: "pieces missing (filled in)", value: s.concealed + " · " + Math.round(s.concealed / tot * 100) + "%", cls: s.concealed / tot > .05 ? "bad" : "" }, { label: "arrived too late", value: s.late }, { label: "repeats thrown away", value: s.dup }, { label: "waiting to be played", value: s.buffered + " pieces", bar: s.buffered / (E.C.buf / 80 + 2) * 100 }]; },
     steps: [
-      { text: "<b>Press PTT.</b> Every 80 ms A emits one voice datagram carrying two Codec 2 frames. It floods down both paths; D keeps the first copy of each sequence number and drops the other.", run() { setControl("talk", true); E.sc.onControl("talk", true); } },
-      { text: "<b>Add 10 % loss per link.</b> A frame lost on one path usually still arrives on the other — flooding is the loss protection. Frames missing on both are <b>concealed</b>, never retransmitted.", run() { setControl("loss", 10); } },
-      { text: "<b>Add 80 ms of jitter.</b> Frames now arrive unevenly. The 120 ms jitter buffer absorbs it; frames arriving after their playout deadline are discarded as <b>late</b>. Playing them on arrival would sound robotic.", run() { setControl("jitter", 80); } },
-      { text: "<b>Drop the B–C link.</b> One relay steps behind a wall. Voice continues over A–E–F–D with no switch-over gap, because it was already flowing there — nothing had to reroute.", run() { setControl("wall", true); E.sc.onControl("wall", true); } },
-      { text: "<b>Jitter buffer at 240 ms.</b> Fewer late frames, but mouth-to-ear latency rises by the same amount. This is the trade the adaptive buffer walks between 80 and 240 ms.", run() { setControl("buf", 240); } }
+      { text: "<b>Press the talk button.</b> Every 80 ms A sends one tiny piece of voice (about 128 bytes). It goes down both paths. D keeps the first copy of each piece and throws the other away.", run() { setControl("talk", true); E.sc.onControl("talk", true); } },
+      { text: "<b>Lose 10 % of pieces on every link.</b> A piece lost on one path usually still arrives by the other. That is the protection. If a piece is lost on both, D fills the gap with a soft sound. It never asks for it again — too late for a conversation.", run() { setControl("loss", 10); } },
+      { text: "<b>Make the delay uneven.</b> Pieces now arrive in fits and starts. The short wait before playing smooths that out. Pieces that miss their turn are dropped as <b>late</b>. Playing them the instant they arrive would sound robotic.", run() { setControl("jitter", 80); } },
+      { text: "<b>Cut the B–C link.</b> One phone steps behind a wall. The voice keeps going over A–E–F–D with no gap, because it was already flowing there. Nothing had to be re-planned.", run() { setControl("wall", true); E.sc.onControl("wall", true); } },
+      { text: "<b>Wait 240 ms before playing.</b> Fewer late pieces — but the delay from mouth to ear goes up by the same amount. The app balances these two between 80 and 240 ms.", run() { setControl("buf", 240); } }
     ]
   });
 
   // ---------- 4. Image transfer ----------
   S.push({
-    id: "image", group: "Tier 1 — Wi-Fi Aware", tier: "Images · chunked transfer", title: "Chunked image over hop-by-hop TCP, with checkpointed resume",
-    blurb: "A 40 KB WebP is cut into 1 KB chunks and carried hop-by-hop; each relay stores a chunk fully before forwarding it. If a relay walks away, the sender waits for another path, asks the receiver for its last verified chunk, and resumes from there. Multi-path splitting is shown too — and why it was rejected.",
-    hint: "Start the transfer, then make relay C walk away. Try the rejected multi-path mode.",
-    intro: "Sender A, receiver D. Primary path A–B–C–D, alternate A–E–F–D. <b>Start</b> to begin sending 40 chunks.",
+    id: "image", group: "Phones talking to phones", tier: "Photos · sent in small pieces", title: "Sending a photo piece by piece",
+    blurb: "A 40 KB photo is cut into 40 pieces of 1 KB. Each piece is passed one phone at a time, and each phone keeps a whole piece before passing it on. If a phone in the middle walks away, the sender waits for another path, asks the receiver which piece it got last, and carries on from there. We also show sending over two paths at once — and why we don't do that.",
+    hint: "Start sending, then make phone C walk away. Then try the two-paths-at-once mode.",
+    intro: "A sends, D receives. Main path A–B–C–D, spare path A–E–F–D. Press <b>Start</b> to send 40 pieces.",
     controls: [
-      { id: "start", type: "buttons", buttons: [{ id: "go", label: "Start transfer", cls: "primary" }, { id: "walk", label: "Relay C walks away", cls: "danger" }, { id: "back", label: "C returns" }] },
-      { id: "multi", type: "switch", label: "Multi-path splitting (rejected)", value: false, desc: "Alternate chunks over both paths. Watch the NDP count at relays against the 4-path cap." }
+      { id: "start", type: "buttons", buttons: [{ id: "go", label: "Start sending", cls: "primary" }, { id: "walk", label: "Phone C walks away", cls: "danger" }, { id: "back", label: "C comes back" }] },
+      { id: "multi", type: "switch", label: "Send over both paths at once (we don't)", value: false, desc: "Every other piece goes the other way. Watch the 'open links' count at the middle phones — a phone can only hold about 4." }
     ],
     st: {}, setup() {
       const s = this.st; Object.assign(s, { total: 40, next: 0, verified: -1, active: false, outstanding: {}, resumes: 0, retx: 0, ooo: 0, lastSeq: -1, t0: null, done: null, sendAcc: 0, path: ["A", "B", "C", "D"], alt: ["A", "E", "F", "D"], stored: {}, locked: false });
@@ -323,13 +323,13 @@
       ["B", "C", "E", "F"].forEach(id => { byId[id].ndp = 2; }); // background NDPs already open at relays
       this.badges();
     },
-    badges() { ["B", "C", "E", "F"].forEach(id => { const n = byId[id]; n.sub = "NDP " + n.ndp + "/4" + (n.ndp > 4 ? " ⚠" : ""); }); byId.D.sub = "verified " + (this.st.verified + 1) + "/" + this.st.total; },
+    badges() { ["B", "C", "E", "F"].forEach(id => { const n = byId[id]; n.sub = "open links " + n.ndp + "/4" + (n.ndp > 4 ? " ⚠" : ""); }); byId.D.sub = "got " + (this.st.verified + 1) + "/" + this.st.total; },
     onControl(id, v) {
       const s = this.st;
-      if (id === "go") { Object.assign(s, { next: 0, verified: -1, active: true, outstanding: {}, resumes: 0, retx: 0, ooo: 0, lastSeq: -1, t0: E.t, done: null, stored: {} }); E.nodes.forEach(n => { n.badge = ""; }); log("Transfer start: 40 KB WebP → 40 × 1 KB chunks, hop-by-hop TCP over " + s.path.join("–"), "sys"); }
-      if (id === "walk") { kill("C"); log("Relay C walked away — chunks in flight through C are lost", "bad"); }
+      if (id === "go") { Object.assign(s, { next: 0, verified: -1, active: true, outstanding: {}, resumes: 0, retx: 0, ooo: 0, lastSeq: -1, t0: E.t, done: null, stored: {} }); E.nodes.forEach(n => { n.badge = ""; }); log("Start: 40 KB photo → 40 pieces of 1 KB, one phone at a time along " + s.path.join("–"), "sys"); }
+      if (id === "walk") { kill("C"); log("Phone C walked away — the pieces it was holding are lost", "bad"); }
       if (id === "back") { revive("C"); log("C is back", "ok"); }
-      if (id === "multi") { ["B", "C", "E", "F"].forEach(x => { byId[x].ndp = 2; }); s.locked = false; log(v ? "Multi-path splitting ON — chunks alternate over both paths" : "Single best path", v ? "warn" : "sys"); }
+      if (id === "multi") { ["B", "C", "E", "F"].forEach(x => { byId[x].ndp = 2; }); s.locked = false; log(v ? "Both paths at once — pieces alternate between them" : "One path at a time", v ? "warn" : "sys"); }
       this.badges();
     },
     route(k) { const s = this.st; const pathUp = p => p.every(id => byId[id].alive); if (E.C.multi) { const both = [s.path, s.alt].filter(pathUp); return both.length ? both[k % both.length] : null; } return pathUp(s.path) ? s.path : pathUp(s.alt) ? s.alt : null; },
@@ -339,12 +339,12 @@
       ["B", "C", "E", "F"].forEach(id => { byId[id].ndp = 2; });
       const routes = E.C.multi ? [s.path, s.alt] : [this.route(0)]; routes.filter(Boolean).forEach(r => r.slice(1, -1).forEach(id => { byId[id].ndp += 1; }));
       if (E.C.multi) ["B", "C", "E", "F"].forEach(id => { byId[id].ndp += 1; }); // ARQ/control paths back to the sender
-      const over = ["B", "C", "E", "F"].some(id => byId[id].ndp > 4); if (over && !s.locked) { s.locked = true; log("NDP cap exceeded at a relay — other traffic through it is blocked until a path is torn down", "bad"); } if (!over) s.locked = false;
+      const over = ["B", "C", "E", "F"].some(id => byId[id].ndp > 4); if (over && !s.locked) { s.locked = true; log("A middle phone has more links open than it can handle — everything else through it is stuck", "bad"); } if (!over) s.locked = false;
       // timeouts → checkpointed resume
-      for (const k in s.outstanding) { if (E.t - s.outstanding[k] > 1400) { delete s.outstanding[k]; const r = this.route(+k); if (!r) { byId.A.badge = "WAITING FOR PATH"; byId.A.badgeColor = css("--amber"); return; } s.resumes++; s.retx++; log("Chunk " + k + " timed out. A asks D for its last verified chunk → " + s.verified + ". Resuming from " + (s.verified + 1) + " over " + r.join("–") + ".", "warn"); s.next = s.verified + 1; byId.A.badge = "RESUMED @" + s.next; byId.A.badgeColor = css("--green"); for (const j in s.outstanding) delete s.outstanding[j]; } }
+      for (const k in s.outstanding) { if (E.t - s.outstanding[k] > 1400) { delete s.outstanding[k]; const r = this.route(+k); if (!r) { byId.A.badge = "WAITING FOR A PATH"; byId.A.badgeColor = css("--amber"); return; } s.resumes++; s.retx++; log("No confirmation for piece " + k + ". A asks D: which piece did you get last? → " + s.verified + ". Carrying on from " + (s.verified + 1) + " along " + r.join("–") + ".", "warn"); s.next = s.verified + 1; byId.A.badge = "CONTINUING FROM " + s.next; byId.A.badgeColor = css("--green"); for (const j in s.outstanding) delete s.outstanding[j]; } }
       s.sendAcc += dt; const gap = s.locked ? 520 : 130;
-      if (s.sendAcc >= gap && s.next < s.total && Object.keys(s.outstanding).length < 6) { s.sendAcc = 0; const k = s.next++; const r = this.route(k); if (!r) { s.next--; byId.A.badge = "WAITING FOR PATH"; byId.A.badgeColor = css("--amber"); return; } byId.A.badge = ""; s.outstanding[k] = E.t; this.hop(k, r, 0); }
-      if (s.verified >= s.total - 1 && !s.done) { s.done = E.t - s.t0; s.active = false; byId.D.badge = "IMAGE COMPLETE"; byId.D.badgeColor = css("--green"); log("All 40 chunks verified in " + fmtT(s.done) + (s.resumes ? " with " + s.resumes + " resume(s)" : ""), "ok"); }
+      if (s.sendAcc >= gap && s.next < s.total && Object.keys(s.outstanding).length < 6) { s.sendAcc = 0; const k = s.next++; const r = this.route(k); if (!r) { s.next--; byId.A.badge = "WAITING FOR A PATH"; byId.A.badgeColor = css("--amber"); return; } byId.A.badge = ""; s.outstanding[k] = E.t; this.hop(k, r, 0); }
+      if (s.verified >= s.total - 1 && !s.done) { s.done = E.t - s.t0; s.active = false; byId.D.badge = "PHOTO COMPLETE"; byId.D.badgeColor = css("--green"); log("All 40 pieces received in " + fmtT(s.done) + (s.resumes ? ", carrying on " + s.resumes + " time(s) after a break" : ""), "ok"); }
     },
     hop(k, r, i) {
       const s = this.st; const from = r[i], to = r[i + 1]; if (!to) return;
@@ -353,29 +353,29 @@
         s.stored[n.id + ":" + k] = true; this.hop(k, r, p.payload.i);   // store fully, then forward
       } });
     },
-    metrics() { const s = this.st; const maxNdp = Math.max(...["B", "C", "E", "F"].map(id => byId[id] ? byId[id].ndp : 0)); return [{ label: "chunks verified at D", value: (s.verified + 1) + " / " + s.total, bar: (s.verified + 1) / s.total * 100, barCls: "green" }, { label: "resumes (checkpointed)", value: s.resumes }, { label: "retransmitted", value: s.retx }, { label: "arrived out of order", value: s.ooo, cls: s.ooo ? "warn" : "" }, { label: "busiest relay NDPs", value: maxNdp + " / 4", cls: maxNdp > 4 ? "bad" : "good" }, { label: "elapsed", value: s.done ? fmtT(s.done) : s.t0 ? fmtT(E.t - s.t0) : "—" }]; },
+    metrics() { const s = this.st; const maxNdp = Math.max(...["B", "C", "E", "F"].map(id => byId[id] ? byId[id].ndp : 0)); return [{ label: "pieces received by D", value: (s.verified + 1) + " / " + s.total, bar: (s.verified + 1) / s.total * 100, barCls: "green" }, { label: "times it carried on after a break", value: s.resumes }, { label: "pieces sent again", value: s.retx }, { label: "arrived out of order", value: s.ooo, cls: s.ooo ? "warn" : "" }, { label: "most links open at one phone", value: maxNdp + " / 4", cls: maxNdp > 4 ? "bad" : "good" }, { label: "time taken", value: s.done ? fmtT(s.done) : s.t0 ? fmtT(E.t - s.t0) : "—" }]; },
     steps: [
-      { text: "<b>Start the transfer.</b> Chunks move one hop at a time; B stores #k completely before passing it on. D verifies chunks in order and reports how far it has got.", run() { E.sc.onControl("go"); } },
-      { text: "<b>Relay C walks away.</b> Chunks that were inside C are gone. A stops getting confirmations, times out, and instead of restarting from zero asks D: what is the last chunk you verified?", run() { E.sc.onControl("walk"); } },
-      { text: "<b>Resume over the alternate path.</b> A continues from verified + 1 over A–E–F–D. The transfer finishes with a handful of retransmissions, not forty.", run() { } },
-      { text: "<b>The rejected alternative: split across both paths.</b> C is back. Alternate chunks now go over both routes. Look at the relays: each open path costs a data-path slot, and Wi-Fi Aware chips sustain only 4–6. Relays go over the cap, everything through them slows, and chunks arrive out of order.", run() { E.sc.onControl("back"); setControl("multi", true); E.sc.onControl("multi", true); E.sc.onControl("go"); } },
-      { text: "<b>Why single-path wins.</b> Bandwidth was never the bottleneck — the connection cap was. One path with checkpointed resume keeps the rest of the network's routing capacity free.", run() { setControl("multi", false); E.sc.onControl("multi", false); } }
+      { text: "<b>Start sending.</b> Pieces move one phone at a time. B holds a whole piece before passing it on. D counts the pieces in order and reports how far it has got.", run() { E.sc.onControl("go"); } },
+      { text: "<b>Phone C walks away.</b> The pieces inside C are gone. A stops getting confirmations. Instead of starting from zero, it asks D: which piece did you get last?", run() { E.sc.onControl("walk"); } },
+      { text: "<b>Carry on by the spare path.</b> A continues from the next piece along A–E–F–D. The photo finishes with a handful of pieces sent twice, not all forty.", run() { } },
+      { text: "<b>What we don't do: both paths at once.</b> C is back. Now pieces alternate between the two paths. Look at the middle phones: every open path uses up one of the few links a phone can hold (about 4). They go over the limit, everything through them slows down, and pieces arrive out of order.", run() { E.sc.onControl("back"); setControl("multi", true); E.sc.onControl("multi", true); E.sc.onControl("go"); } },
+      { text: "<b>Why one path is better.</b> Speed was never the problem — the number of open links was. One path, plus carrying on from where it stopped, leaves the rest of the network free.", run() { setControl("multi", false); E.sc.onControl("multi", false); } }
     ]
   });
 
   // ---------- 5. LoRa airtime ----------
   function loraAirtime(bytes, sf) { const bw = 125000, cr = 1, de = sf >= 11 ? 1 : 0; const ts = Math.pow(2, sf) / bw; const pre = (8 + 4.25) * ts; const ps = 8 + Math.max(Math.ceil((8 * bytes - 4 * sf + 28 + 16) / (4 * (sf - 2 * de))) * (cr + 4), 0); return (pre + ps * ts) * 1000; }
   S.push({
-    id: "lora", group: "Tier 2 — ESP32 + LoRa", tier: "Tier 2 · LoRa backbone", title: "LoRa airtime: why the backbone is managed in seconds, not packets",
-    blurb: "Two clusters, each with an ESP32 bridge running Meshtastic. Every position update that leaves a cluster costs airtime on the shared 865–867 MHz channel, and the duty-cycle allowance is 1 % — 36 seconds of transmit time an hour. Spreading factor decides how expensive each packet is.",
-    hint: "Change the spreading factor and the telemetry interval; raise an SOS while the channel is saturated.",
-    intro: "Each phone reports its position on the interval you set. The gateway phone hands them to the bridge for LoRa backhaul to the EOC. <b>Start</b>.",
+    id: "lora", group: "Linking groups with LoRa radios", tier: "Step 2 · the LoRa radio link", title: "The LoRa link: slow, so use it carefully",
+    blurb: "Two groups of phones, each with a small LoRa radio box that links them over a long distance. Every message sent over LoRa uses up shared air time, and the rules only allow about 36 seconds of sending per hour. The 'range setting' decides how long each message takes on air.",
+    hint: "Change the range setting and how often phones report. Raise an SOS while the radio is busy.",
+    intro: "Each phone reports its location on the timer you set. The gateway phone passes it to the radio box, which sends it to the command centre. Press <b>Start</b>.",
     controls: [
-      { id: "sf", type: "select", label: "Spreading factor", value: 9, options: [[7, "SF7 — fast, short range"], [9, "SF9 — default"], [12, "SF12 — long range, contingency"]] },
-      { id: "interval", type: "range", label: "Position update interval", min: 2, max: 60, value: 10, unit: " s" },
-      { id: "bytes", type: "range", label: "Telemetry packet", min: 48, max: 240, step: 8, value: 164, unit: " B", desc: "Meshtastic ceiling 255 B; 240 B is the working limit." },
-      { id: "summary", type: "switch", label: "Backhaul cluster summaries only", value: false, desc: "Gateway coalesces its cluster's positions into one 96 B summary per interval." },
-      { id: "sos", type: "buttons", buttons: [{ id: "raiseSOS", label: "Raise SOS (176 B)", cls: "danger" }] }
+      { id: "sf", type: "select", label: "Range setting", value: 9, options: [[7, "Short range — fast"], [9, "Medium range — normal"], [12, "Long range — very slow, emergencies only"]] },
+      { id: "interval", type: "range", label: "How often phones report", min: 2, max: 60, value: 10, unit: " s" },
+      { id: "bytes", type: "range", label: "Size of one report", min: 48, max: 240, step: 8, value: 164, unit: " bytes", desc: "A LoRa message can carry at most about 240 bytes." },
+      { id: "summary", type: "switch", label: "Send one group summary instead", value: false, desc: "The gateway combines its group's locations into one small (96 byte) message per timer." },
+      { id: "sos", type: "buttons", buttons: [{ id: "raiseSOS", label: "Raise SOS", cls: "danger" }] }
     ],
     st: {}, setup() {
       const s = this.st; Object.assign(s, { busy: [], q: [], sent: 0, coal: 0, sosLat: null, sosAt: null, acc: {}, chanFree: 0, dropped: 0 });
@@ -386,7 +386,7 @@
       link("A2", "L1", "wifi", { label: "AP" }); link("B2", "L2", "wifi", { label: "AP" }); link("L1", "L2", "lora", { label: "LoRa 865–867 MHz", ly: -26 }); link("L2", "EOC", "net", { label: "backhaul" });
       byId.A2.badge = "GATEWAY"; byId.B2.badge = "GATEWAY";
     },
-    onControl(id) { if (id === "raiseSOS") { const s = this.st; s.sosAt = E.t; this.enqueue({ kind: "SOS", bytes: 176, from: "A4", pri: 0 }); byId.A4.ring = css("--red"); log("A4 raises SOS — P0: reserved airtime, jumps the queue", "bad"); } },
+    onControl(id) { if (id === "raiseSOS") { const s = this.st; s.sosAt = E.t; this.enqueue({ kind: "SOS", bytes: 176, from: "A4", pri: 0 }); byId.A4.ring = css("--red"); log("A4 raises an SOS — it goes straight to the front of the line", "bad"); } },
     enqueue(m) { const s = this.st; if (m.pri === 0) s.q.unshift(m); else { if (E.C.summary || s.q.filter(x => x.pri === 2).length > 6) { const i = s.q.findIndex(x => x.pri === 2 && x.from === m.from); if (i >= 0) { s.q[i] = m; s.coal++; return; } } s.q.push(m); } },
     tick(dt) {
       const s = this.st; const win = 60000; s.busy = s.busy.filter(b => b.end > E.t - win);
@@ -400,128 +400,128 @@
         const m = s.q[0]; const at = loraAirtime(m.bytes, E.C.sf);
         const overBudget = dutyNow >= .01;
         if (overBudget && m.pri !== 0) { // routine telemetry yields; keep only the latest sample per origin
-          const latest = {}; s.q.filter(x => x.pri === 2).forEach(x => { latest[x.from] = x; }); const before = s.q.length; s.q = s.q.filter(x => x.pri === 0 || latest[x.from] === x); s.coal += before - s.q.length; s.holdLog = (s.holdLog || 0) + dt; if (s.holdLog > 5000) { s.holdLog = 0; log("Duty cycle at 1 % — routine telemetry suspended, latest sample kept per origin", "warn"); } return; }
+          const latest = {}; s.q.filter(x => x.pri === 2).forEach(x => { latest[x.from] = x; }); const before = s.q.length; s.q = s.q.filter(x => x.pri === 0 || latest[x.from] === x); s.coal += before - s.q.length; s.holdLog = (s.holdLog || 0) + dt; if (s.holdLog > 5000) { s.holdLog = 0; log("Air time used up — routine reports are held back; only the newest one per phone is kept", "warn"); } return; }
         s.q.shift(); s.chanFree = E.t + at; s.busy.push({ start: E.t, end: E.t + at }); s.sent++;
-        send("L1", "L2", { color: m.pri === 0 ? css("--red") : css("--amber"), label: m.kind + " " + m.bytes + "B", dur: at, r: 6, onArrive: () => { send("L2", "EOC", { color: m.pri === 0 ? css("--red") : css("--amber"), r: 5, onArrive: () => { if (m.pri === 0 && s.sosAt != null) { s.sosLat = E.t - s.sosAt; s.sosAt = null; byId.A4.ring = null; log("SOS reached the EOC in " + fmtT(s.sosLat), "ok"); } } }); } });
+        send("L1", "L2", { color: m.pri === 0 ? css("--red") : css("--amber"), label: m.kind + " " + m.bytes + "B", dur: at, r: 6, onArrive: () => { send("L2", "EOC", { color: m.pri === 0 ? css("--red") : css("--amber"), r: 5, onArrive: () => { if (m.pri === 0 && s.sosAt != null) { s.sosLat = E.t - s.sosAt; s.sosAt = null; byId.A4.ring = null; log("SOS reached the command centre in " + fmtT(s.sosLat), "ok"); } } }); } });
       }
     },
-    metrics() { const s = this.st; const at = loraAirtime(E.C.bytes, E.C.sf); const perHour = Math.floor(36000 / at); return [{ label: "airtime per telemetry packet", value: (at / 1000).toFixed(3) + " s" }, { label: "packets/hour within 1 %", value: perHour, cls: perHour < 60 ? "bad" : "" }, { label: "duty used (60 s window)", value: ((s.duty || 0) * 100).toFixed(2) + " %", cls: (s.duty || 0) >= .01 ? "bad" : "good", bar: (s.duty || 0) * 10000, barCls: (s.duty || 0) >= .01 ? "red" : "green" }, { label: "LoRa queue", value: s.q.length, cls: s.q.length > 8 ? "bad" : "" }, { label: "coalesced / dropped", value: s.coal }, { label: "last SOS latency", value: s.sosLat != null ? fmtT(s.sosLat) : "—", cls: s.sosLat > 10000 ? "bad" : s.sosLat ? "good" : "" }]; },
+    metrics() { const s = this.st; const at = loraAirtime(E.C.bytes, E.C.sf); const perHour = Math.floor(36000 / at); return [{ label: "air time for one report", value: (at / 1000).toFixed(3) + " s" }, { label: "reports allowed per hour", value: perHour, cls: perHour < 60 ? "bad" : "" }, { label: "air time used (last minute)", value: ((s.duty || 0) * 100).toFixed(2) + " % of 1 %", cls: (s.duty || 0) >= .01 ? "bad" : "good", bar: (s.duty || 0) * 10000, barCls: (s.duty || 0) >= .01 ? "red" : "green" }, { label: "messages waiting", value: s.q.length, cls: s.q.length > 8 ? "bad" : "" }, { label: "old reports replaced by newer", value: s.coal }, { label: "last SOS took", value: s.sosLat != null ? fmtT(s.sosLat) : "—", cls: s.sosLat > 10000 ? "bad" : s.sosLat ? "good" : "" }]; },
     steps: [
-      { text: "<b>SF9, 164 B every 10 s from four phones.</b> Each packet takes 0.84 s of air. That is about 42 packets an hour inside the 1 % allowance — and four phones at 10 s intervals want 1,440. Watch the duty gauge.", run() { } },
-      { text: "<b>Saturation.</b> At 1 % the bridge suspends routine telemetry and keeps only the latest sample per phone. The queue stops growing but positions at the EOC go stale — which is why sample age must always be displayed.", run() { setControl("interval", 4); } },
-      { text: "<b>Raise an SOS while saturated.</b> P0 traffic has reserved airtime: it goes to the front of the queue and crosses in one packet time, roughly 0.9 s plus the backhaul.", run() { E.sc.onControl("raiseSOS"); } },
-      { text: "<b>SF12 — the contingency setting.</b> The same 164 B packet now costs 6.1 s of air; the hour's budget is six packets. Long range is paid for in capacity. Treat SF12 as an emergency fall-back, not the default.", run() { setControl("sf", 12); } },
-      { text: "<b>The fix: keep positions inside the cluster, backhaul summaries.</b> Frequent updates stay on Wi-Fi Aware; the gateway sends one 96 B cluster summary per interval, labelled as a summary with gateway provenance. Duty falls well under budget at SF9.", run() { setControl("sf", 9); setControl("summary", true); setControl("interval", 10); } }
+      { text: "<b>Medium range, one report every 10 s from four phones.</b> Each report takes 0.84 s on air. The rules allow about 42 reports an hour — but four phones every 10 s would send 1,440. Watch the air-time gauge.", run() { } },
+      { text: "<b>The radio is full.</b> At the limit, the radio box holds routine reports back and keeps only the newest one per phone. The queue stops growing, but locations at the command centre get old. That is why the screen always shows how old a location is.", run() { setControl("interval", 4); } },
+      { text: "<b>Raise an SOS while it's full.</b> SOS messages have air time set aside for them. It goes to the front of the line and crosses in about a second.", run() { E.sc.onControl("raiseSOS"); } },
+      { text: "<b>Long range setting.</b> The same report now takes 6 seconds on air, and the hour's budget is six reports. Long range is paid for with very little capacity. Keep it for emergencies only.", run() { setControl("sf", 12); } },
+      { text: "<b>The fix: keep the chatter inside the group, send summaries out.</b> Frequent updates stay between the phones. The gateway sends one small summary of the whole group per timer. Air time drops well under the limit.", run() { setControl("sf", 9); setControl("summary", true); setControl("interval", 10); } }
     ]
   });
 
   // ---------- 6. Gateway fail-over ----------
   S.push({
-    id: "failover", group: "Tier 2 — ESP32 + LoRa", tier: "Tier 2 · gateway fail-over", title: "The ESP32 chooses its next phone — a lease, not an election",
-    blurb: "The bridge holds the physical LoRa link, so the bridge controls fail-over. The attached phone heartbeats every 2 s; when the lease expires, authorised candidates in range request ownership and the ESP32 picks one by external power, battery and reachability. Lease generations fence out a phone that comes back late.",
+    id: "failover", group: "Linking groups with LoRa radios", tier: "Step 2 · when the gateway phone dies", title: "When the gateway phone dies",
+    blurb: "The radio box is the thing with the long-range link, so the radio box decides who its phone is. The attached phone sends a small 'still here' signal every 2 s. If it stops, other approved phones nearby ask to take over, and the box picks the best one — plugged in beats battery. The old phone can't barge back in later.",
     hint: "Cut the gateway phone's power, then bring it back after the hand-over.",
-    intro: "P1 is attached to bridge L1 (lease generation 1) and heartbeats every 2 s. P2 and P3 are provisioned as gateway-capable. <b>Start</b>.",
-    controls: [{ id: "acts", type: "buttons", buttons: [{ id: "cut", label: "P1 loses power", cls: "danger" }, { id: "return", label: "P1 comes back" }] }],
+    intro: "P1 is attached to radio box L1 and sends 'still here' every 2 s. P2 and P3 are approved to take over if needed. Press <b>Start</b>.",
+    controls: [{ id: "acts", type: "buttons", buttons: [{ id: "cut", label: "P1's battery dies", cls: "danger" }, { id: "return", label: "P1 comes back" }] }],
     st: {}, setup() {
       const s = this.st; Object.assign(s, { gen: 1, owner: "P1", lastHb: 0, hbAcc: 0, expired: null, phase: "attached", lostAt: null, recovered: null, queued: 12, ack: 9 });
-      node("L1", 480, 250, "esp", "L1 · ESP32 + LoRa"); node("P1", 300, 160, "phone", "P1", { battery: 61, ext: false }); node("P2", 300, 380, "phone", "P2", { battery: 38, ext: true }); node("P3", 660, 380, "phone", "P3", { battery: 84, ext: false }); node("P4", 660, 160, "phone", "P4", { battery: 70, ext: false, capable: false });
+      node("L1", 480, 250, "esp", "L1 · radio box"); node("P1", 300, 160, "phone", "P1", { battery: 61, ext: false }); node("P2", 300, 380, "phone", "P2", { battery: 38, ext: true }); node("P3", 660, 380, "phone", "P3", { battery: 84, ext: false }); node("P4", 660, 160, "phone", "P4", { battery: 70, ext: false, capable: false });
       node("EOC", 880, 110, "cmd", "EOC"); link("L1", "EOC", "lora", { label: "LoRa backbone" });
       ["P1", "P2", "P3", "P4"].forEach(id => link(id, "L1", "ble", { label: "" })); meshByRange(["P1", "P2", "P3", "P4"], 420);
-      byId.P1.sub = "61 % · battery"; byId.P2.sub = "38 % · on external power"; byId.P3.sub = "84 % · battery"; byId.P4.sub = "not gateway-capable";
+      byId.P1.sub = "61 % battery"; byId.P2.sub = "38 % · plugged in"; byId.P3.sub = "84 % battery"; byId.P4.sub = "not approved";
       this.badges();
     },
-    badges() { const s = this.st; E.nodes.forEach(n => { if (n.kind === "phone") { n.badge = n.id === s.owner ? "ATTACHED · gen " + s.gen : (n.capable === false ? "" : "candidate"); n.badgeColor = n.id === s.owner ? css("--green") : css("--ink-3"); } }); byId.L1.sub = "lease gen " + s.gen + " · " + s.queued + " queued · " + s.ack + " acked"; },
+    badges() { const s = this.st; E.nodes.forEach(n => { if (n.kind === "phone") { n.badge = n.id === s.owner ? "ATTACHED · round " + s.gen : (n.capable === false ? "" : "can take over"); n.badgeColor = n.id === s.owner ? css("--green") : css("--ink-3"); } }); byId.L1.sub = "round " + s.gen + " · " + s.queued + " messages waiting · " + s.ack + " confirmed"; },
     onControl(id) {
       const s = this.st;
-      if (id === "cut" && byId.P1.alive) { kill("P1"); s.lostAt = E.t; s.phase = "lost"; log("P1 lost power. L1 keeps its queue (" + s.queued + " records, " + s.ack + " already acknowledged); heartbeats stop.", "bad"); }
-      if (id === "return") { revive("P1"); log("P1 back online — attaches with its old lease (gen 1)", "sys"); send("P1", "L1", { color: css("--blue"), label: "attach gen1", onArrive: () => { if (s.gen > 1) { log("L1 rejects P1: generation 1 < current " + s.gen + " — the old owner is fenced out; no split-brain", "warn"); byId.P1.badge = "FENCED (stale gen)"; byId.P1.badgeColor = css("--red"); } else { s.owner = "P1"; this.badges(); } } }); }
+      if (id === "cut" && byId.P1.alive) { kill("P1"); s.lostAt = E.t; s.phase = "lost"; log("P1's battery died. The radio box still has its " + s.queued + " waiting messages (" + s.ack + " already confirmed). The 'still here' signals stop.", "bad"); }
+      if (id === "return") { revive("P1"); log("P1 is back — it tries to attach with its old round-1 ticket", "sys"); send("P1", "L1", { color: css("--blue"), label: "attach (round 1)", onArrive: () => { if (s.gen > 1) { log("The box says no: round 1 is out of date, we are on round " + s.gen + ". So two phones can never both think they are in charge.", "warn"); byId.P1.badge = "REFUSED (old round)"; byId.P1.badgeColor = css("--red"); } else { s.owner = "P1"; this.badges(); } } }); }
     },
     tick(dt) {
       const s = this.st; s.hbAcc += dt;
       if (s.hbAcc >= 2000) { s.hbAcc = 0; if (byId[s.owner].alive) send(s.owner, "L1", { color: css("--green"), r: 4, label: "hb", onArrive: () => { s.lastHb = E.t; } }); }
-      if (s.phase === "lost" && E.t - s.lastHb > 4200) { s.phase = "electing"; log("Lease expired after two missed heartbeats. Candidates authenticate and request ownership.", "warn"); ["P2", "P3"].forEach(c => send(c, "L1", { color: css("--blue"), label: "request", onArrive: () => { s.req = (s.req || 0) + 1; if (s.req === 2) { s.req = 0; const pick = byId.P2.ext ? "P2" : "P3"; s.gen++; s.owner = pick; s.phase = "syncing"; log("L1 selects " + pick + " (external power beats 84 % battery) → lease gen " + s.gen, "ok"); this.badges(); send("L1", pick, { color: css("--amber"), label: "inventory", onArrive: () => send(pick, "L1", { color: css("--amber"), label: "resume ids", onArrive: () => { s.phase = "attached"; s.recovered = E.t - s.lostAt; s.lastHb = E.t; log("Queue inventories exchanged; delivery resumes with the same message IDs. Recovery " + fmtT(s.recovered) + " (target < 20 s). Records lost: 0.", "ok"); this.badges(); } }) }); } } })); }
+      if (s.phase === "lost" && E.t - s.lastHb > 4200) { s.phase = "electing"; log("Two 'still here' signals missed — P1 is treated as gone. Approved phones ask to take over.", "warn"); ["P2", "P3"].forEach(c => send(c, "L1", { color: css("--blue"), label: "take over?", onArrive: () => { s.req = (s.req || 0) + 1; if (s.req === 2) { s.req = 0; const pick = byId.P2.ext ? "P2" : "P3"; s.gen++; s.owner = pick; s.phase = "syncing"; log("The box picks " + pick + " — plugged in beats 84 % battery. New round: " + s.gen, "ok"); this.badges(); send("L1", pick, { color: css("--amber"), label: "what's waiting", onArrive: () => send(pick, "L1", { color: css("--amber"), label: "carry on", onArrive: () => { s.phase = "attached"; s.recovered = E.t - s.lostAt; s.lastHb = E.t; log("They compare their lists of waiting messages and carry on. Back up in " + fmtT(s.recovered) + " (goal: under 20 s). Messages lost: none.", "ok"); this.badges(); } }) }); } } })); }
       if (s.phase === "attached" && Math.random() < dt / 6000) { s.queued++; s.ack++; this.badges(); }
     },
-    metrics() { const s = this.st; return [{ label: "lease owner", value: s.owner + " · gen " + s.gen }, { label: "state", value: s.phase, cls: s.phase === "attached" ? "good" : "warn" }, { label: "recovery time", value: s.recovered != null ? fmtT(s.recovered) : s.lostAt ? fmtT(E.t - s.lostAt) : "—", cls: s.recovered != null ? (s.recovered < 20000 ? "good" : "bad") : "" }, { label: "acknowledged records lost", value: 0, cls: "good" }]; },
+    metrics() { const s = this.st; const phase = { attached: "working", lost: "phone lost", electing: "choosing a new phone", syncing: "handing over" }[s.phase] || s.phase; return [{ label: "phone in charge", value: s.owner + " · round " + s.gen }, { label: "what's happening", value: phase, cls: s.phase === "attached" ? "good" : "warn" }, { label: "time to recover", value: s.recovered != null ? fmtT(s.recovered) : s.lostAt ? fmtT(E.t - s.lostAt) : "—", cls: s.recovered != null ? (s.recovered < 20000 ? "good" : "bad") : "" }, { label: "confirmed messages lost", value: 0, cls: "good" }]; },
     steps: [
-      { text: "<b>Normal operation.</b> P1 heartbeats to the bridge every 2 s. The queue of outbound records lives on the ESP32 <i>and</i> on the phones that originated them.", run() { } },
-      { text: "<b>P1 loses power.</b> No election among the phones — the bridge simply notices the heartbeats stop. After two missed beats the lease expires.", run() { E.sc.onControl("cut"); } },
-      { text: "<b>Candidates request; the bridge chooses.</b> P2 (38 %, but on a vehicle charger) beats P3 (84 % battery): external power first, then battery, then reachability, then a deterministic tie-break. The lease generation increments.", run() { } },
-      { text: "<b>P1 comes back.</b> It offers its old lease, generation 1. The bridge refuses: the generation is stale. That fence is what prevents two phones both believing they own the LoRa link.", run() { E.sc.onControl("return"); } }
+      { text: "<b>Normal.</b> P1 sends 'still here' to the radio box every 2 s. Messages waiting to go out are kept on the box <i>and</i> on the phones that wrote them, so nothing depends on one device.", run() { } },
+      { text: "<b>P1's battery dies.</b> The phones don't hold a vote. The box simply notices the signals have stopped. After two missed signals it treats P1 as gone.", run() { E.sc.onControl("cut"); } },
+      { text: "<b>Others ask; the box chooses.</b> P2 (38 %, but plugged into a car charger) beats P3 (84 % battery). Plugged in first, then battery, then who can reach the most phones. Each hand-over starts a new round number.", run() { } },
+      { text: "<b>P1 comes back.</b> It shows its old round-1 ticket. The box refuses — that round is over. This is what stops two phones both thinking they are in charge.", run() { E.sc.onControl("return"); } }
     ]
   });
 
   // ---------- 7. Satellite ----------
   S.push({
-    id: "satellite", group: "Tier 3 — Satellite", tier: "Tier 3 · satellite fall-back", title: "When the LoRa chain can't reach command",
-    blurb: "The EOC is 120 km away. Normally two LoRa repeaters carry traffic there. When terrain takes the repeaters out, the gateway bridge falls back to Iridium Short Burst Data: 340 bytes a frame, tens of seconds a round trip, needs open sky. Simulated for the hackathon against the real RockBLOCK interface.",
-    hint: "Toggle the terrain and change the message size; then send.",
-    intro: "Cluster on the left with a satellite-equipped bridge L1; repeaters R1 and R2 chain to the EOC. <b>Start</b>.",
+    id: "satellite", group: "Reaching command by satellite", tier: "Step 3 · satellite backup", title: "When the radio chain can't reach command",
+    blurb: "The command centre is 120 km away. Normally two relay radios pass messages there. When hills block the relays, the radio box falls back to a small satellite modem: 340 bytes per message, tens of seconds each way, and it needs a clear view of the sky. (Simulated here, using the same message limits as the real modem.)",
+    hint: "Switch the hills on, change the message size, then send.",
+    intro: "The group on the left has radio box L1 with a satellite modem. Relays R1 and R2 chain to the command centre. Press <b>Start</b>.",
     controls: [
-      { id: "terrain", type: "switch", label: "Terrain degrades the LoRa chain", value: false, desc: "R2 drops out of range." },
-      { id: "sky", type: "switch", label: "Open sky at L1", value: true, desc: "Iridium needs sky visibility — not range." },
-      { id: "size", type: "range", label: "Message size", min: 40, max: 700, step: 10, value: 120, unit: " B" },
-      { id: "send", type: "buttons", buttons: [{ id: "tx", label: "Send to EOC", cls: "primary" }] }
+      { id: "terrain", type: "switch", label: "Hills block the relay chain", value: false, desc: "Relay R2 can no longer be reached." },
+      { id: "sky", type: "switch", label: "Clear sky above L1", value: true, desc: "Satellite needs a view of the sky — distance doesn't matter." },
+      { id: "size", type: "range", label: "Message size", min: 40, max: 700, step: 10, value: 120, unit: " bytes" },
+      { id: "send", type: "buttons", buttons: [{ id: "tx", label: "Send to command", cls: "primary" }] }
     ],
     st: {}, setup() {
       const s = this.st; Object.assign(s, { sent: 0, path: "—", lat: null, frames: 0, sentAt: null });
       ring(150, 330, 4, 90).forEach((p, i) => node("A" + (i + 1), p[0], p[1], "phone", "A" + (i + 1))); meshByRange(["A1", "A2", "A3", "A4"], 150);
-      node("L1", 290, 330, "esp", "L1 · bridge + SBD"); link("A2", "L1", "wifi", { label: "AP" });
-      node("R1", 480, 300, "esp", "R1 · repeater"); node("R2", 680, 260, "esp", "R2 · repeater"); node("EOC", 890, 230, "cmd", "EOC · 120 km");
+      node("L1", 290, 330, "esp", "L1 · radio box + satellite"); link("A2", "L1", "wifi", { label: "AP" });
+      node("R1", 480, 300, "esp", "R1 · relay"); node("R2", 680, 260, "esp", "R2 · relay"); node("EOC", 890, 230, "cmd", "Command · 120 km");
       link("L1", "R1", "lora", { label: "LoRa" }); link("R1", "R2", "lora", { label: "LoRa" }); link("R2", "EOC", "lora", { label: "LoRa" });
-      node("SAT", 560, 60, "sat", "Iridium · LEO"); link("L1", "SAT", "sat", { delay: 14000, label: "SBD ↑" }); link("SAT", "EOC", "sat", { delay: 14000, label: "SBD ↓" });
+      node("SAT", 560, 60, "sat", "Satellite"); link("L1", "SAT", "sat", { delay: 14000, label: "up" }); link("SAT", "EOC", "sat", { delay: 14000, label: "down" });
     },
     onControl(id, v) {
       const s = this.st;
-      if (id === "terrain") { byId.R2.alive = !v; log(v ? "Terrain: R2 unreachable — the LoRa chain is broken" : "LoRa chain restored", v ? "bad" : "ok"); }
-      if (id === "sky") { linkBetween("L1", "SAT").up = !!v; log(v ? "L1 has open sky" : "L1 under canopy — no satellite visibility", v ? "ok" : "bad"); }
+      if (id === "terrain") { byId.R2.alive = !v; log(v ? "Hills: relay R2 can't be reached — the chain is broken" : "Relay chain is back", v ? "bad" : "ok"); }
+      if (id === "sky") { linkBetween("L1", "SAT").up = !!v; log(v ? "L1 can see the sky" : "L1 is under trees — it can't see the satellite", v ? "ok" : "bad"); }
       if (id === "tx") {
         s.sentAt = E.t; const bytes = E.C.size;
         send("A1", "A2", { color: css("--gold"), label: bytes + " B", onArrive: () => send("A2", "L1", { color: css("--gold"), onArrive: () => {
-          if (bfs("L1", "EOC") && byId.R2.alive) { s.path = "LoRa · 2 repeaters"; this.relay(["L1", "R1", "R2", "EOC"], 0, bytes); return; }
-          if (!linkBetween("L1", "SAT").up) { s.path = "none — queued"; log("No LoRa chain and no sky: message held on L1 (store & forward)", "bad"); return; }
-          const frames = Math.ceil(bytes / 340); s.frames = frames; s.path = "satellite SBD · " + frames + " frame" + (frames > 1 ? "s" : "");
-          if (frames > 1) log(bytes + " B exceeds the 340 B SBD frame — split into " + frames + " frames (and this is why the composer shows a byte cap)", "warn");
-          for (let f = 0; f < frames; f++) send("L1", "SAT", { color: css("--violet"), label: "SBD " + (f + 1) + "/" + frames, r: 6, dur: 14000 + f * 9000 + rnd(0, 6000), onArrive: () => send("SAT", "EOC", { color: css("--violet"), r: 6, dur: 12000 + rnd(0, 8000), onArrive: () => { if (f === frames - 1) { s.lat = E.t - s.sentAt; s.sent++; log("EOC received the message over satellite in " + fmtT(s.lat), "ok"); } } }) });
+          if (bfs("L1", "EOC") && byId.R2.alive) { s.path = "relay chain"; this.relay(["L1", "R1", "R2", "EOC"], 0, bytes); return; }
+          if (!linkBetween("L1", "SAT").up) { s.path = "none — kept for later"; log("No relay chain and no sky: the message waits on L1 until one comes back", "bad"); return; }
+          const frames = Math.ceil(bytes / 340); s.frames = frames; s.path = "satellite · " + frames + " message" + (frames > 1 ? "s" : "");
+          if (frames > 1) log(bytes + " bytes is more than a satellite message can hold (340) — split into " + frames + " (this is why the app shows a size limit when you type)", "warn");
+          for (let f = 0; f < frames; f++) send("L1", "SAT", { color: css("--violet"), label: "sat " + (f + 1) + "/" + frames, r: 6, dur: 14000 + f * 9000 + rnd(0, 6000), onArrive: () => send("SAT", "EOC", { color: css("--violet"), r: 6, dur: 12000 + rnd(0, 8000), onArrive: () => { if (f === frames - 1) { s.lat = E.t - s.sentAt; s.sent++; log("Command got the message by satellite in " + fmtT(s.lat), "ok"); } } }) });
         } }) });
       }
     },
-    relay(path, i, bytes) { const s = this.st; if (i >= path.length - 1) { s.lat = E.t - s.sentAt; s.sent++; log("EOC received the message over the LoRa chain in " + fmtT(s.lat), "ok"); return; } send(path[i], path[i + 1], { color: css("--amber"), label: bytes + " B", dur: loraAirtime(Math.min(bytes, 240), 9) + 200, onArrive: () => this.relay(path, i + 1, bytes) }); },
-    metrics() { const s = this.st; return [{ label: "path used", value: s.path, wide: true }, { label: "last latency", value: s.lat != null ? fmtT(s.lat) : "—", cls: s.lat > 20000 ? "warn" : s.lat ? "good" : "" }, { label: "SBD frames", value: s.frames || "—" }, { label: "messages delivered", value: s.sent }]; },
+    relay(path, i, bytes) { const s = this.st; if (i >= path.length - 1) { s.lat = E.t - s.sentAt; s.sent++; log("Command got the message over the relay chain in " + fmtT(s.lat), "ok"); return; } send(path[i], path[i + 1], { color: css("--amber"), label: bytes + " B", dur: loraAirtime(Math.min(bytes, 240), 9) + 200, onArrive: () => this.relay(path, i + 1, bytes) }); },
+    metrics() { const s = this.st; return [{ label: "path used", value: s.path, wide: true }, { label: "last message took", value: s.lat != null ? fmtT(s.lat) : "—", cls: s.lat > 20000 ? "warn" : s.lat ? "good" : "" }, { label: "satellite messages needed", value: s.frames || "—" }, { label: "messages delivered", value: s.sent }]; },
     steps: [
-      { text: "<b>Normal: LoRa chain.</b> A 120 B message hops L1 → R1 → R2 → EOC in a few seconds. Satellite is not used while a cheaper path exists.", run() { E.sc.onControl("tx"); } },
-      { text: "<b>Terrain breaks the chain.</b> R2 is gone; no time to deploy another repeater mid-golden-hour. The bridge falls back to Iridium SBD. Notice the latency — tens of seconds, not milliseconds.", run() { setControl("terrain", true); E.sc.onControl("terrain", true); E.sc.onControl("tx"); } },
-      { text: "<b>Oversize message.</b> 600 B does not fit a 340 B frame. It is split into two SBD frames — which is why the console's broadcast composer shows a live byte count against the cap.", run() { setControl("size", 600); E.sc.onControl("tx"); } },
-      { text: "<b>Satellite is limited by sky, not distance.</b> Put L1 under canopy: Iridium is unreachable even though the satellite passes overhead. Messages wait on the bridge. This is why the modem lives on a specific gateway node with a clear view.", run() { setControl("sky", false); E.sc.onControl("sky", false); setControl("size", 120); E.sc.onControl("tx"); } }
+      { text: "<b>Normal: the relay chain.</b> A small message hops L1 → R1 → R2 → command in a few seconds. The satellite isn't used while a cheaper path exists.", run() { E.sc.onControl("tx"); } },
+      { text: "<b>Hills break the chain.</b> R2 is out of reach, and there is no time to put another relay up. The radio box switches to the satellite. Notice how long it takes — tens of seconds, not a blink.", run() { setControl("terrain", true); E.sc.onControl("terrain", true); E.sc.onControl("tx"); } },
+      { text: "<b>A message that's too big.</b> 600 bytes doesn't fit in one 340-byte satellite message, so it goes as two. This is why the app shows a size limit while you type.", run() { setControl("size", 600); E.sc.onControl("tx"); } },
+      { text: "<b>It's about the sky, not the distance.</b> Put L1 under trees: the satellite is overhead but can't be reached. Messages wait. This is why the modem sits on one chosen box with a clear view.", run() { setControl("sky", false); E.sc.onControl("sky", false); setControl("size", 120); E.sc.onControl("tx"); } }
     ]
   });
 
   // ---------- 8. DTN transition ----------
   S.push({
-    id: "dtn", group: "Tier 4 — Adaptive transition", tier: "Tier 4 · Delay-tolerant networking", title: "Any phone that regains internet becomes the gateway",
-    blurb: "A cellular coverage bubble sits over part of the sector. Phones inside it validate real internet (NET_CAPABILITY_VALIDATED), broadcast an \"I have internet\" beacon, and the cluster routes cloud-bound traffic through them. Queued reports flush in one batch. Leave the bubble and you fall one rung down the same ladder — the mesh is never torn down.",
-    hint: "Drag the coverage slider to move the cell bubble; toggle flicker.",
-    intro: "Eight phones in a cluster; the cloud backend top-right. No phone has internet yet, so every report queues. <b>Start</b>.",
+    id: "dtn", group: "When the internet comes back", tier: "Step 4 · one phone gets signal", title: "One phone gets signal, everyone benefits",
+    blurb: "A patch of mobile signal covers part of the area. Any phone inside it checks that the internet really works, then tells the others: 'I have internet'. Everyone sends their reports through that phone, and anything that was waiting goes out in one go. Step out of the signal and things simply queue up again. The phone-to-phone links never switch off.",
+    hint: "Slide the signal patch over the group. Try making it come and go.",
+    intro: "Eight phones in a group; the internet is top-right. Nobody has signal yet, so every report waits. Press <b>Start</b>.",
     controls: [
-      { id: "cov", type: "range", label: "Cell coverage position", min: 0, max: 100, value: 100, desc: "Slide left to move the coverage bubble over the cluster." },
-      { id: "flicker", type: "switch", label: "Coverage flickers", value: false, desc: "Signal comes and goes every ~6 s." }
+      { id: "cov", type: "range", label: "Where the mobile signal is", min: 0, max: 100, value: 100, desc: "Slide left to move the signal patch over the group." },
+      { id: "flicker", type: "switch", label: "Signal comes and goes", value: false, desc: "Every ~6 s the signal drops and returns." }
     ],
     st: {}, setup() {
       const s = this.st; Object.assign(s, { tiers: { DIRECT: 0, GATEWAY: 0, QUEUED: 0 }, flushed: 0, acc: {}, valid: {}, gw: null, flick: 0, covOn: true });
       const P = [["P1", 150, 200], ["P2", 250, 330], ["P3", 320, 170], ["P4", 420, 300], ["P5", 520, 190], ["P6", 560, 380], ["P7", 660, 260], ["P8", 740, 400]];
       P.forEach(p => node(p[0], p[1], p[2], "phone", p[0], { q: 0 })); meshByRange(P.map(p => p[0]), 190);
-      node("CLOUD", 880, 80, "cloud", "Cloud"); E.nodes.filter(n => n.kind === "phone").forEach(n => link(n.id, "CLOUD", "net", { delay: 250 }));
+      node("CLOUD", 880, 80, "cloud", "Internet"); E.nodes.filter(n => n.kind === "phone").forEach(n => link(n.id, "CLOUD", "net", { delay: 250 }));
       E.links.filter(l => l.kind === "net").forEach(l => { l.up = false; l.hidden = true; });
     },
     covCenter() { return { x: 180 + E.C.cov * 9, y: 330, r: 150 }; },
-    drawUnder(ctx) { const c = this.covCenter(); if (!this.st.covOn) return; ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2); ctx.fillStyle = css("--blue"); ctx.globalAlpha = .12; ctx.fill(); ctx.globalAlpha = .7; ctx.setLineDash([6, 6]); ctx.strokeStyle = css("--blue"); ctx.lineWidth = 1.5; ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1; ctx.fillStyle = css("--blue"); ctx.font = "700 11px Inter, sans-serif"; ctx.textAlign = "center"; ctx.fillText("cellular coverage", c.x, c.y - c.r - 8); },
+    drawUnder(ctx) { const c = this.covCenter(); if (!this.st.covOn) return; ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2); ctx.fillStyle = css("--blue"); ctx.globalAlpha = .12; ctx.fill(); ctx.globalAlpha = .7; ctx.setLineDash([6, 6]); ctx.strokeStyle = css("--blue"); ctx.lineWidth = 1.5; ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1; ctx.fillStyle = css("--blue"); ctx.font = "700 11px Inter, sans-serif"; ctx.textAlign = "center"; ctx.fillText("mobile signal here", c.x, c.y - c.r - 8); },
     tick(dt) {
       const s = this.st; const c = this.covCenter();
-      if (E.C.flicker) { s.flick += dt; if (s.flick > 6000) { s.flick = 0; s.covOn = !s.covOn; log(s.covOn ? "Coverage back" : "Coverage lost", s.covOn ? "ok" : "warn"); } } else s.covOn = true;
+      if (E.C.flicker) { s.flick += dt; if (s.flick > 6000) { s.flick = 0; s.covOn = !s.covOn; log(s.covOn ? "Signal is back" : "Signal dropped", s.covOn ? "ok" : "warn"); } } else s.covOn = true;
       E.nodes.filter(n => n.kind === "phone").forEach(n => {
         const inside = s.covOn && Math.hypot(n.x - c.x, n.y - c.y) < c.r;
-        if (inside) { s.valid[n.id] = (s.valid[n.id] || 0) + dt; if (s.valid[n.id] > 1500 && !n.internet) { n.internet = true; n.badge = "GATEWAY"; n.badgeColor = css("--green"); linkBetween(n.id, "CLOUD").up = true; log(n.id + ": NET_CAPABILITY_VALIDATED → beacons \"I have internet\" into the mesh", "ok"); s.bgen = (s.bgen || 0) + 1; flood(n.id, null, { color: css("--green"), r: 4, label: "beacon", payload: { beacon: n.id, gen: s.bgen, ttl: 4 } }); } }
-        else { s.valid[n.id] = 0; if (n.internet) { n.internet = false; n.badge = ""; linkBetween(n.id, "CLOUD").up = false; log(n.id + " lost internet — beacon withdrawn; peers fall one rung", "warn"); } }
+        if (inside) { s.valid[n.id] = (s.valid[n.id] || 0) + dt; if (s.valid[n.id] > 1500 && !n.internet) { n.internet = true; n.badge = "GATEWAY"; n.badgeColor = css("--green"); linkBetween(n.id, "CLOUD").up = true; log(n.id + " checked: the internet really works → tells the others 'I have internet'", "ok"); s.bgen = (s.bgen || 0) + 1; flood(n.id, null, { color: css("--green"), r: 4, label: "I have internet", payload: { beacon: n.id, gen: s.bgen, ttl: 4 } }); } }
+        else { s.valid[n.id] = 0; if (n.internet) { n.internet = false; n.badge = ""; linkBetween(n.id, "CLOUD").up = false; log(n.id + " lost the internet — the others go back to waiting", "warn"); } }
       });
       const gws = E.nodes.filter(n => n.internet).map(n => n.id); s.gw = gws[0] || null;
       E.nodes.filter(n => n.kind === "phone").forEach(n => {
@@ -529,95 +529,95 @@
         const count = 1 + n.q; n.q = 0;
         if (n.internet) { s.tiers.DIRECT += count; if (count > 1) s.flushed += count - 1; for (let i = 0; i < Math.min(count, 4); i++) send(n.id, "CLOUD", { color: css("--blue"), r: 4, dur: 250 + i * 120 }); return; }
         const gw = gws.map(g => ({ g, p: bfs(n.id, g) })).filter(x => x.p).sort((a, b) => a.p.length - b.p.length)[0];
-        if (gw) { s.tiers.GATEWAY += count; if (count > 1) { s.flushed += count - 1; log(n.id + " reconnects: flushes " + count + " queued items in one batch via " + gw.g, "ok"); } this.relay(gw.p, 0, Math.min(count, 4)); return; }
-        n.q += count; s.tiers.QUEUED++; n.sub = "queued " + n.q;
+        if (gw) { s.tiers.GATEWAY += count; if (count > 1) { s.flushed += count - 1; log(n.id + " sends its " + count + " waiting reports in one go, through " + gw.g, "ok"); } this.relay(gw.p, 0, Math.min(count, 4)); return; }
+        n.q += count; s.tiers.QUEUED++; n.sub = "waiting " + n.q;
       });
-      E.nodes.forEach(n => { if (n.kind === "phone") n.sub = n.q ? "queued " + n.q : ""; });
+      E.nodes.forEach(n => { if (n.kind === "phone") n.sub = n.q ? "waiting " + n.q : ""; });
     },
-    onArrive(n, p) { const b = p.payload.beacon; if (!b) return; const key = b + ":" + p.payload.gen; if (n.seen.has(key)) return; n.seen.add(key); if (p.payload.ttl > 0 && !n.internet) flood(n.id, p.from, { color: css("--green"), r: 4, label: "beacon", payload: { beacon: b, gen: p.payload.gen, ttl: p.payload.ttl - 1 } }); },
+    onArrive(n, p) { const b = p.payload.beacon; if (!b) return; const key = b + ":" + p.payload.gen; if (n.seen.has(key)) return; n.seen.add(key); if (p.payload.ttl > 0 && !n.internet) flood(n.id, p.from, { color: css("--green"), r: 4, label: "I have internet", payload: { beacon: b, gen: p.payload.gen, ttl: p.payload.ttl - 1 } }); },
     relay(path, i, count) { if (i >= path.length - 1) { for (let k = 0; k < count; k++) send(path[i], "CLOUD", { color: css("--blue"), r: 4, dur: 250 + k * 120 }); return; } for (let k = 0; k < count; k++) send(path[i], path[i + 1], { color: css("--gold"), r: 4, dur: 45 + k * 60, onArrive: k === 0 ? () => this.relay(path, i + 1, count) : null }); },
-    metrics() { const s = this.st; const q = E.nodes.reduce((a, n) => a + (n.q || 0), 0); return [{ label: "gateway", value: s.gw || "none", cls: s.gw ? "good" : "bad" }, { label: "queued right now", value: q, cls: q ? "warn" : "good" }, { label: "sent DIRECT", value: s.tiers.DIRECT }, { label: "sent via GATEWAY peer", value: s.tiers.GATEWAY }, { label: "held (store & forward)", value: s.tiers.QUEUED }, { label: "flushed on reconnect", value: s.flushed }]; },
+    metrics() { const s = this.st; const q = E.nodes.reduce((a, n) => a + (n.q || 0), 0); return [{ label: "phone with internet", value: s.gw || "none", cls: s.gw ? "good" : "bad" }, { label: "reports waiting now", value: q, cls: q ? "warn" : "good" }, { label: "sent straight to the internet", value: s.tiers.DIRECT }, { label: "sent through another phone", value: s.tiers.GATEWAY }, { label: "kept waiting", value: s.tiers.QUEUED }, { label: "sent later in one go", value: s.flushed }]; },
     steps: [
-      { text: "<b>Dead zone.</b> The coverage bubble is off to the right. Every phone's reports queue locally — nothing is lost, nothing is delivered.", run() { setControl("cov", 100); } },
-      { text: "<b>Coverage reaches P7 and P8.</b> After 1.5 s of validated internet they beacon into the mesh. Everyone else now routes cloud traffic through them (gold hops) and flushes their queues in one batch.", run() { setControl("cov", 66); } },
-      { text: "<b>Same ladder in reverse.</b> Slide coverage away: gateways withdraw their beacons and the cluster drops one rung to store-and-forward. The mesh underneath never changed.", run() { setControl("cov", 100); } },
-      { text: "<b>Flickering signal.</b> This is the realistic case. Watch traffic alternate between DIRECT / GATEWAY / QUEUED without anyone switching modes — a quality gradient, not on/off.", run() { setControl("cov", 62); setControl("flicker", true); } }
+      { text: "<b>No signal anywhere.</b> The signal patch is off to the right. Every phone keeps its reports. Nothing is lost, nothing is delivered yet.", run() { setControl("cov", 100); } },
+      { text: "<b>Signal reaches P7 and P8.</b> After checking for 1.5 s that the internet really works, they tell the others. Everyone now sends through them (gold dots), and all the waiting reports go out in one go.", run() { setControl("cov", 66); } },
+      { text: "<b>And back again.</b> Slide the signal away. The two phones say 'no internet any more' and everyone goes back to waiting. The links between the phones never changed.", run() { setControl("cov", 100); } },
+      { text: "<b>Signal that comes and goes.</b> This is what really happens. Watch reports switch between 'straight out', 'through another phone' and 'waiting' — without anyone touching a setting.", run() { setControl("cov", 62); setControl("flicker", true); } }
     ]
   });
 
   // ---------- 9. Alert into a dead zone ----------
   S.push({
-    id: "alert", group: "Tier 4 — Adaptive transition", tier: "Alerts · reaching responders in a dead zone", title: "Three ways an alert gets into a dead zone",
-    blurb: "The sensor feed reaches the backend over IMD's own telemetry — local damage rarely blocks it. The hard part is the last stretch: getting the alert to phones inside the dead zone. Three paths, one new packet type: broadcast.",
-    hint: "Fire each path from the controls. Compare broadcast against unicast.",
-    intro: "IMD station → backend is up. The cluster below has no internet. <b>Start</b> to see the alert arrive at the backend.",
+    id: "alert", group: "When the internet comes back", tier: "Alerts · reaching phones with no signal", title: "Three ways a warning reaches a dead zone",
+    blurb: "The weather station's data reaches our server over its own link — local damage rarely stops that. The hard part is the last stretch: getting the warning to phones that have no signal. There are three ways, and one trick: a message marked 'for everyone'.",
+    hint: "Try each of the three ways. Then compare 'for everyone' with sending to each phone one by one.",
+    intro: "The weather station can reach our server. The phones below have no internet. Press <b>Start</b> to see the warning arrive at the server.",
     controls: [
-      { id: "bcast", type: "switch", label: "Broadcast message type", value: true, desc: "Off = the backend must address each phone with its own unicast packet." },
-      { id: "paths", type: "buttons", label: "Deliver via", buttons: [{ id: "p1", label: "① Patchy: one phone has signal" }, { id: "p2", label: "② Blackout: LoRa / satellite" }, { id: "p3", label: "③ Pre-loaded static risk" }, { id: "clr", label: "Clear" }] }
+      { id: "bcast", type: "switch", label: "Mark the message 'for everyone'", value: true, desc: "Off = the server has to send a separate message to each phone." },
+      { id: "paths", type: "buttons", label: "Get it there by", buttons: [{ id: "p1", label: "① One phone still has signal" }, { id: "p2", label: "② No signal at all: satellite" }, { id: "p3", label: "③ Loaded onto phones beforehand" }, { id: "clr", label: "Clear" }] }
     ],
     st: {}, setup() {
       const s = this.st; Object.assign(s, { alerted: new Set(), pkts: 0, t0: null, full: null });
-      node("IMD", 90, 70, "sensor", "IMD station"); node("BE", 480, 70, "cloud", "Backend"); link("IMD", "BE", "net", { label: "national telemetry (INSAT DCP)", delay: 400 });
-      node("SAT", 800, 70, "sat", "Iridium"); link("BE", "SAT", "sat", { delay: 9000 });
+      node("IMD", 90, 70, "sensor", "Weather station"); node("BE", 480, 70, "cloud", "Our server"); link("IMD", "BE", "net", { label: "the station's own link", delay: 400 });
+      node("SAT", 800, 70, "sat", "Satellite"); link("BE", "SAT", "sat", { delay: 9000 });
       const P = [["P1", 160, 300], ["P2", 270, 400], ["P3", 300, 240], ["P4", 420, 340], ["P5", 520, 240], ["P6", 560, 420], ["P7", 680, 320], ["P8", 760, 440]];
       P.forEach(p => node(p[0], p[1], p[2], "phone", p[0])); meshByRange(P.map(p => p[0]), 185);
-      node("L1", 850, 300, "esp", "L1 · bridge + SBD"); link("P7", "L1", "wifi", { label: "AP" }); link("SAT", "L1", "sat", { delay: 9000 });
+      node("L1", 850, 300, "esp", "L1 · radio box + satellite"); link("P7", "L1", "wifi", { label: "AP" }); link("SAT", "L1", "sat", { delay: 9000 });
       link("BE", "P5", "net", { delay: 300 }); linkBetween("BE", "P5").up = false;
     },
-    drawUnder(ctx) { ctx.beginPath(); ctx.roundRect(100, 190, 800, 320, 16); ctx.setLineDash([8, 6]); ctx.strokeStyle = css("--red"); ctx.globalAlpha = .6; ctx.lineWidth = 1.5; ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1; ctx.fillStyle = css("--red"); ctx.font = "700 11px Inter, sans-serif"; ctx.textAlign = "left"; ctx.fillText("DEAD ZONE — no cellular", 112, 208); },
+    drawUnder(ctx) { ctx.beginPath(); ctx.roundRect(100, 190, 800, 320, 16); ctx.setLineDash([8, 6]); ctx.strokeStyle = css("--red"); ctx.globalAlpha = .6; ctx.lineWidth = 1.5; ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1; ctx.fillStyle = css("--red"); ctx.font = "700 11px Inter, sans-serif"; ctx.textAlign = "left"; ctx.fillText("NO SIGNAL HERE", 112, 208); },
     onControl(id) {
       const s = this.st;
       if (id === "clr") { s.alerted.clear(); s.pkts = 0; s.t0 = null; s.full = null; E.nodes.forEach(n => { n.badge = ""; n.seen.clear(); n.internet = false; }); linkBetween("BE", "P5").up = false; return; }
       s.alerted.clear(); s.pkts = 0; s.t0 = E.t; s.full = null; E.nodes.forEach(n => { if (n.kind === "phone") { n.badge = ""; n.seen.clear(); } });
       const alertId = "alert-" + Math.random().toString(36).slice(2, 7);
-      if (id === "p1") { byId.P5.internet = true; linkBetween("BE", "P5").up = true; log("Path ①: P5 still has one bar of signal. It auto-promotes to gateway — the same Tier 4 logic, running inbound.", "sys"); this.fromBackend(alertId, "P5"); }
-      if (id === "p2") { log("Path ②: total blackout. Backend injects the alert at the satellite tier → L1 → cluster lead P7 → flood.", "sys"); s.pkts++; send("BE", "SAT", { color: css("--violet"), label: "ALERT 118 B", r: 6, onArrive: () => { s.pkts++; send("SAT", "L1", { color: css("--violet"), label: "SBD", r: 6, onArrive: () => { s.pkts++; send("L1", "P7", { color: css("--red"), label: "ALERT", onArrive: () => this.deliver("P7", null, alertId, 4) }); } }); } }); }
-      if (id === "p3") { log("Path ③: no packets at all. The Layer 1 static classification was cached at mission briefing; every phone already knows Z4 is HIGH risk.", "sys"); E.nodes.filter(n => n.kind === "phone").forEach(n => { n.badge = "CACHED: Z4 HIGH"; n.badgeColor = css("--amber"); s.alerted.add(n.id); }); s.full = 0; }
+      if (id === "p1") { byId.P5.internet = true; linkBetween("BE", "P5").up = true; log("Way ①: P5 still has one bar of signal, so it becomes the way in for everyone.", "sys"); this.fromBackend(alertId, "P5"); }
+      if (id === "p2") { log("Way ②: nobody has signal. The server sends the warning by satellite to radio box L1, which hands it to P7, and it spreads from there.", "sys"); s.pkts++; send("BE", "SAT", { color: css("--violet"), label: "WARNING", r: 6, onArrive: () => { s.pkts++; send("SAT", "L1", { color: css("--violet"), label: "sat", r: 6, onArrive: () => { s.pkts++; send("L1", "P7", { color: css("--red"), label: "WARNING", onArrive: () => this.deliver("P7", null, alertId, 4) }); } }); } }); }
+      if (id === "p3") { log("Way ③: no messages needed. The danger map was loaded onto every phone at the briefing, so each phone already knows this area is high risk.", "sys"); E.nodes.filter(n => n.kind === "phone").forEach(n => { n.badge = "ALREADY KNOWS: HIGH RISK"; n.badgeColor = css("--amber"); s.alerted.add(n.id); }); s.full = 0; }
     },
     fromBackend(alertId, gw) {
       const s = this.st;
-      if (E.C.bcast) { s.pkts++; send("BE", gw, { color: css("--red"), label: "ALERT bcast", onArrive: () => this.deliver(gw, null, alertId, 4) }); }
+      if (E.C.bcast) { s.pkts++; send("BE", gw, { color: css("--red"), label: "WARNING · for everyone", onArrive: () => this.deliver(gw, null, alertId, 4) }); }
       else { E.nodes.filter(n => n.kind === "phone").forEach((n, i) => { s.pkts++; send("BE", gw, { color: css("--red"), label: "→" + n.id, dur: 300 + i * 90, onArrive: () => { const p = bfs(gw, n.id); if (p) this.unicast(p, 0, n.id); } }); }); }
     },
     unicast(path, i, dst) { const s = this.st; if (i >= path.length - 1) { this.mark(byId[dst]); return; } s.pkts++; send(path[i], path[i + 1], { color: css("--red"), r: 4, label: "→" + dst, onArrive: () => this.unicast(path, i + 1, dst) }); },
-    deliver(at, from, alertId, ttl) { const n = byId[at]; if (n.seen.has(alertId)) return; n.seen.add(alertId); this.mark(n); if (ttl > 0) this.st.pkts += flood(at, from, { color: css("--red"), r: 4, label: "bcast", payload: { alertId, ttl: ttl - 1 } }); },
+    deliver(at, from, alertId, ttl) { const n = byId[at]; if (n.seen.has(alertId)) return; n.seen.add(alertId); this.mark(n); if (ttl > 0) this.st.pkts += flood(at, from, { color: css("--red"), r: 4, label: "for everyone", payload: { alertId, ttl: ttl - 1 } }); },
     onArrive(n, p) { if (p.payload.alertId && n.kind === "phone") this.deliver(n.id, p.from, p.payload.alertId, p.payload.ttl); },
-    mark(n) { const s = this.st; if (n.kind !== "phone") return; n.badge = "ALERT: Z4 CRITICAL"; n.badgeColor = css("--red"); s.alerted.add(n.id); if (s.alerted.size === 8 && s.full == null) { s.full = E.t - s.t0; log("All 8 phones alerted in " + fmtT(s.full) + " using " + s.pkts + " packets", "ok"); } },
-    metrics() { const s = this.st; return [{ label: "phones alerted", value: s.alerted.size + " / 8", cls: s.alerted.size === 8 ? "good" : "", bar: s.alerted.size / 8 * 100, barCls: "green" }, { label: "packets transmitted", value: s.pkts }, { label: "time to full coverage", value: s.full != null ? fmtT(s.full) : "—" }, { label: "message type", value: E.C.bcast ? "broadcast" : "unicast ×8" }]; },
+    mark(n) { const s = this.st; if (n.kind !== "phone") return; n.badge = "WARNING RECEIVED"; n.badgeColor = css("--red"); s.alerted.add(n.id); if (s.alerted.size === 8 && s.full == null) { s.full = E.t - s.t0; log("All 8 phones warned in " + fmtT(s.full) + " using " + s.pkts + " messages", "ok"); } },
+    metrics() { const s = this.st; return [{ label: "phones warned", value: s.alerted.size + " / 8", cls: s.alerted.size === 8 ? "good" : "", bar: s.alerted.size / 8 * 100, barCls: "green" }, { label: "messages sent", value: s.pkts }, { label: "time until everyone knew", value: s.full != null ? fmtT(s.full) : "—" }, { label: "how it was addressed", value: E.C.bcast ? "for everyone" : "one by one ×8" }]; },
     steps: [
-      { text: "<b>The sensor side is fine.</b> IMD's station reports over INSAT DCP telemetry to the backend regardless of the local towers. The alert engine flips Z4 to CRITICAL. Now it has to reach eight phones with no internet.", run() { send("IMD", "BE", { color: css("--violet"), label: "rain 41 mm/h", r: 6, onArrive: () => log("Backend: Z4 → CRITICAL. Alert ready for the field.", "warn") }); } },
-      { text: "<b>Path ① — patchy coverage.</b> P5 still has a bar of signal. It receives the alert, and because it is a <b>broadcast</b> packet every relay treats itself as a recipient and forwards it — same TTL and dedup rules as everything else.", run() { E.sc.onControl("p1"); } },
-      { text: "<b>Path ② — total blackout.</b> Nobody has signal. The backend injects at the satellite tier; the bridge hands it to the cluster lead and it floods down.", run() { E.sc.onControl("clr"); E.sc.onControl("p2"); } },
-      { text: "<b>Path ③ — pre-loaded.</b> No packets: the static risk classification was cached on every phone at briefing. A responder walking into Z4 already sees the warning. This is the worst-case floor.", run() { E.sc.onControl("clr"); E.sc.onControl("p3"); } },
-      { text: "<b>Why broadcast needed adding.</b> Turn the broadcast type off and run path ① again: the backend must address eight unicast packets and each is relayed separately. Count the packets.", run() { E.sc.onControl("clr"); setControl("bcast", false); E.sc.onControl("p1"); } }
+      { text: "<b>The weather side is fine.</b> The station reports to our server over its own link, whatever happens to the local phone towers. The server raises a warning. Now it has to reach eight phones with no internet.", run() { send("IMD", "BE", { color: css("--violet"), label: "heavy rain", r: 6, onArrive: () => log("Server: this area is now CRITICAL. Warning ready to go out.", "warn") }); } },
+      { text: "<b>Way ① — one phone still has signal.</b> P5 has a bar. It gets the warning, and because it is marked <b>for everyone</b>, each phone keeps a copy and passes it on. Same hop limit and repeat check as always.", run() { E.sc.onControl("p1"); } },
+      { text: "<b>Way ② — nobody has signal.</b> The server sends by satellite to the radio box. The box hands it to a phone and it spreads from there.", run() { E.sc.onControl("clr"); E.sc.onControl("p2"); } },
+      { text: "<b>Way ③ — loaded beforehand.</b> No messages at all. The danger map was put on every phone at the briefing. Anyone walking into this area already sees the warning. This is the safety net if everything else fails.", run() { E.sc.onControl("clr"); E.sc.onControl("p3"); } },
+      { text: "<b>Why 'for everyone' matters.</b> Turn it off and run way ① again: the server now has to send eight separate messages, and each one is passed along separately. Count the messages.", run() { E.sc.onControl("clr"); setControl("bcast", false); E.sc.onControl("p1"); } }
     ]
   });
 
   // ---------- 10. Priority & queueing ----------
   S.push({
-    id: "priority", group: "Cross-cutting", tier: "Priority and queueing", title: "Four priorities through one constrained link",
-    blurb: "Six phones push traffic through relay R to the EOC over a link with limited capacity. P0 has reserved capacity and jumps the queue; P1 is delivered reliably; P2 positions are coalesced to the latest sample; P3 bulk only moves when there is spare capacity. Per-origin fairness stops one faulty phone from starving everyone else's emergencies.",
-    hint: "Lower the link capacity; raise an SOS; then turn on the faulty phone.",
-    intro: "Traffic is flowing. <b>Start</b> to constrain the link.",
+    id: "priority", group: "Keeping things in order", tier: "Urgent messages first", title: "Urgent messages go first",
+    blurb: "Six phones send everything through one phone, R, to the command centre over a slow link. Messages come in four levels: SOS first, then tasks, then locations, then bulk data. SOS always jumps the queue. Old locations are replaced by newer ones. Bulk data only goes when there's room. And one broken phone shouting SOS can't drown out a real one.",
+    hint: "Slow the link down; raise an SOS; then switch on the broken phone.",
+    intro: "Messages are flowing. Press <b>Start</b> to slow the link down.",
     controls: [
-      { id: "cap", type: "range", label: "Link capacity", min: 2, max: 20, value: 14, unit: " pkt/s" },
-      { id: "faulty", type: "switch", label: "P6 is faulty — spams SOS", value: false },
-      { id: "fair", type: "switch", label: "Per-origin fairness in P0", value: true, desc: "Caps any one origin to 1 P0 packet/s when others are waiting." },
-      { id: "sos", type: "buttons", buttons: [{ id: "raise", label: "P3 raises SOS", cls: "danger" }] }
+      { id: "cap", type: "range", label: "Link speed", min: 2, max: 20, value: 14, unit: " msgs/s" },
+      { id: "faulty", type: "switch", label: "P6 is broken — keeps shouting SOS", value: false },
+      { id: "fair", type: "switch", label: "Fair share for SOS", value: true, desc: "No single phone can send more than one SOS a second while others are waiting." },
+      { id: "sos", type: "buttons", buttons: [{ id: "raise", label: "P3 raises a real SOS", cls: "danger" }] }
     ],
     st: {}, setup() {
       const s = this.st; Object.assign(s, { q: { 0: [], 1: [], 2: {}, 3: [] }, deliv: { 0: 0, 1: 0, 2: 0, 3: 0 }, coal: 0, dropped3: 0, sosLat: [], acc: 0, gen: {}, lastP0: {}, tokens: 0 });
-      ring(200, 300, 6, 130).forEach((p, i) => node("P" + (i + 1), p[0], p[1], "phone", "P" + (i + 1))); node("R", 470, 300, "phone", "R · relay"); node("EOC", 860, 300, "cmd", "EOC");
-      for (let i = 1; i <= 6; i++) link("P" + i, "R"); link("R", "EOC", "wifi", { label: "constrained link", delay: 300 });
+      ring(200, 300, 6, 130).forEach((p, i) => node("P" + (i + 1), p[0], p[1], "phone", "P" + (i + 1))); node("R", 470, 300, "phone", "R · passes everything on"); node("EOC", 860, 300, "cmd", "Command");
+      for (let i = 1; i <= 6; i++) link("P" + i, "R"); link("R", "EOC", "wifi", { label: "slow link", delay: 300 });
     },
-    draw(ctx) { const s = this.st; const x = 560, y = 380, w = 260; const rows = [["P0 SOS", s.q[0].length, css("--red")], ["P1 tasks", s.q[1].length, css("--amber")], ["P2 positions", Object.keys(s.q[2]).length, css("--gold")], ["P3 bulk", s.q[3].length, css("--ink-3")]]; ctx.font = "600 11px Inter, sans-serif"; ctx.textAlign = "left"; ctx.fillStyle = css("--ink-2"); ctx.fillText("Queue at R", x, y - 8); rows.forEach((r, i) => { ctx.fillStyle = css("--ink-2"); ctx.fillText(r[0], x, y + 14 + i * 22); ctx.fillStyle = css("--line"); ctx.fillRect(x + 90, y + 4 + i * 22, w - 90, 12); ctx.fillStyle = r[2]; ctx.fillRect(x + 90, y + 4 + i * 22, Math.min(w - 90, r[1] * 6), 12); ctx.fillStyle = css("--ink"); ctx.font = "600 10px JetBrains Mono, monospace"; ctx.fillText(r[1], x + w + 6, y + 14 + i * 22); ctx.font = "600 11px Inter, sans-serif"; }); },
-    onControl(id) { if (id === "raise") { this.emit("P3", 0, "SOS"); log("P3 raises SOS", "bad"); } },
+    draw(ctx) { const s = this.st; const x = 560, y = 380, w = 260; const rows = [["SOS", s.q[0].length, css("--red")], ["Tasks", s.q[1].length, css("--amber")], ["Locations", Object.keys(s.q[2]).length, css("--gold")], ["Bulk data", s.q[3].length, css("--ink-3")]]; ctx.font = "600 11px Inter, sans-serif"; ctx.textAlign = "left"; ctx.fillStyle = css("--ink-2"); ctx.fillText("Waiting at R", x, y - 8); rows.forEach((r, i) => { ctx.fillStyle = css("--ink-2"); ctx.fillText(r[0], x, y + 14 + i * 22); ctx.fillStyle = css("--line"); ctx.fillRect(x + 90, y + 4 + i * 22, w - 90, 12); ctx.fillStyle = r[2]; ctx.fillRect(x + 90, y + 4 + i * 22, Math.min(w - 90, r[1] * 6), 12); ctx.fillStyle = css("--ink"); ctx.font = "600 10px JetBrains Mono, monospace"; ctx.fillText(r[1], x + w + 6, y + 14 + i * 22); ctx.font = "600 11px Inter, sans-serif"; }); },
+    onControl(id) { if (id === "raise") { this.emit("P3", 0, "SOS"); log("P3 raises a real SOS", "bad"); } },
     emit(from, pri, kind) { const s = this.st; send(from, "R", { color: [css("--red"), css("--amber"), css("--gold"), css("--ink-3")][pri], r: pri === 0 ? 6 : 4, payload: { pri, kind, from, t0: E.t }, onArrive: (n, p) => { const m = p.payload; if (pri === 2) { if (s.q[2][from]) s.coal++; s.q[2][from] = m; } else if (pri === 3) { if (s.q[3].length > 12) s.dropped3++; else s.q[3].push(m); } else s.q[pri].push(m); } }); },
     tick(dt) {
       const s = this.st;
       // generators
       for (let i = 1; i <= 6; i++) { const id = "P" + i; s.gen[id] = (s.gen[id] || 0) + dt; if (s.gen[id] > 700) { s.gen[id] -= 700; this.emit(id, 2, "POS"); if (Math.random() < .25) this.emit(id, 3, "BULK"); if (Math.random() < .12) this.emit(id, 1, "TASK-ACK"); } }
-      if (E.C.faulty) { s.fAcc = (s.fAcc || 0) + dt; if (s.fAcc > 120) { s.fAcc = 0; this.emit("P6", 0, "SOS?"); byId.P6.badge = "FAULTY"; byId.P6.badgeColor = css("--red"); } } else byId.P6.badge = "";
+      if (E.C.faulty) { s.fAcc = (s.fAcc || 0) + dt; if (s.fAcc > 120) { s.fAcc = 0; this.emit("P6", 0, "SOS?"); byId.P6.badge = "BROKEN"; byId.P6.badgeColor = css("--red"); } } else byId.P6.badge = "";
       // constrained link: token bucket
       s.tokens = Math.min(E.C.cap, s.tokens + E.C.cap * dt / 1000);
       while (s.tokens >= 1) {
@@ -631,49 +631,49 @@
         send("R", "EOC", { color: [css("--red"), css("--amber"), css("--gold"), css("--ink-3")][m.pri], r: m.pri === 0 ? 6 : 4, label: m.pri === 0 ? m.kind : "", onArrive: () => { if (m.pri === 0 && m.from === "P3") { s.sosLat.push(E.t - m.t0); if (s.sosLat.length > 20) s.sosLat.shift(); } } });
       }
     },
-    metrics() { const s = this.st; return [{ label: "delivered P0 / P1", value: s.deliv[0] + " / " + s.deliv[1] }, { label: "delivered P2 / P3", value: s.deliv[2] + " / " + s.deliv[3] }, { label: "P2 coalesced", value: s.coal }, { label: "P3 dropped (no capacity)", value: s.dropped3, cls: s.dropped3 ? "warn" : "" }, { label: "P3's SOS latency p95", value: s.sosLat.length ? Math.round(p95(s.sosLat)) + " ms" : "—", cls: p95(s.sosLat) > 2000 ? "bad" : s.sosLat.length ? "good" : "" }, { label: "P0 waiting", value: s.q[0].length, cls: s.q[0].length > 5 ? "bad" : "" }]; },
+    metrics() { const s = this.st; return [{ label: "delivered: SOS / tasks", value: s.deliv[0] + " / " + s.deliv[1] }, { label: "delivered: locations / bulk", value: s.deliv[2] + " / " + s.deliv[3] }, { label: "old locations replaced", value: s.coal }, { label: "bulk dropped (no room)", value: s.dropped3, cls: s.dropped3 ? "warn" : "" }, { label: "P3's SOS took (worst)", value: s.sosLat.length ? Math.round(p95(s.sosLat)) + " ms" : "—", cls: p95(s.sosLat) > 2000 ? "bad" : s.sosLat.length ? "good" : "" }, { label: "SOS messages waiting", value: s.q[0].length, cls: s.q[0].length > 5 ? "bad" : "" }]; },
     steps: [
-      { text: "<b>Plenty of capacity.</b> Everything gets through. Notice positions from the same phone are already merged into the latest sample while they wait.", run() { } },
-      { text: "<b>Constrain the link to 5 packets a second.</b> P3 bulk stops moving — it only rides spare capacity. P2 coalesces harder. P1 acknowledgements still get through.", run() { setControl("cap", 5); } },
-      { text: "<b>SOS under load.</b> P3's SOS goes straight to the head of the queue and crosses in well under the 2 s target.", run() { E.sc.onControl("raise"); } },
-      { text: "<b>A faulty phone spams SOS.</b> P6 fires a P0 packet every 120 ms. Per-origin fairness caps it to one a second whenever other P0 traffic is waiting — raise P3's SOS again and see it still get through.", run() { setControl("faulty", true); E.sc.onControl("raise"); } },
-      { text: "<b>Fairness off.</b> Now P6 monopolises the reserved P0 capacity and P3's genuine SOS waits behind it. This is the failure the per-origin rule exists to prevent.", run() { setControl("fair", false); E.sc.onControl("raise"); } }
+      { text: "<b>Plenty of room.</b> Everything gets through. Notice that while locations wait, a newer one from the same phone replaces the older one.", run() { } },
+      { text: "<b>Slow the link to 5 messages a second.</b> Bulk data stops moving — it only goes when there's spare room. More old locations get replaced. Task messages still get through.", run() { setControl("cap", 5); } },
+      { text: "<b>An SOS on a busy link.</b> P3's SOS goes straight to the front and crosses in well under 2 seconds.", run() { E.sc.onControl("raise"); } },
+      { text: "<b>A broken phone keeps shouting SOS.</b> P6 sends one every 120 ms. The fair-share rule limits it to one a second whenever someone else is waiting. Raise P3's SOS again — it still gets through.", run() { setControl("faulty", true); E.sc.onControl("raise"); } },
+      { text: "<b>Fair share off.</b> Now P6 hogs the SOS lane and P3's real SOS waits behind it. This is exactly what the fair-share rule prevents.", run() { setControl("fair", false); E.sc.onControl("raise"); } }
     ]
   });
 
   // ---------- 11. Partition & rejoin ----------
   S.push({
-    id: "partition", group: "Cross-cutting", tier: "Partition and rejoin", title: "Two halves keep working; conflicts stay visible on rejoin",
-    blurb: "A cluster splits when a wall — a collapsed building, a ridge — cuts the links between two groups. Both halves keep operating and both may make decisions. When they rejoin, observations converge and any conflicting assignment is flagged rather than silently overwritten.",
-    hint: "Toggle the wall, assign task T-7 from each side, then rejoin.",
-    intro: "Eight phones; C1 and C2 are the two team leads' phones. <b>Start</b>.",
+    id: "partition", group: "Keeping things in order", tier: "A group splits in two", title: "A group splits in two, then joins back",
+    blurb: "A group splits when something — a collapsed building, a ridge — cuts the links in the middle. Both halves keep working, and both may make decisions. When they join back up, they compare notes. If they disagree, the disagreement is shown, not quietly overwritten.",
+    hint: "Put the wall up, give task T-7 out from each side, then take the wall down.",
+    intro: "Eight phones. C1 and C2 belong to the two team leaders. Press <b>Start</b>.",
     controls: [
-      { id: "wall", type: "switch", label: "Wall splits the cluster", value: false },
-      { id: "assign", type: "buttons", label: "Assign task T-7", buttons: [{ id: "a1", label: "from C1 (left)" }, { id: "a2", label: "from C2 (right)" }] }
+      { id: "wall", type: "switch", label: "Wall splits the group", value: false },
+      { id: "assign", type: "buttons", label: "Give out task T-7", buttons: [{ id: "a1", label: "from C1 (left)" }, { id: "a2", label: "from C2 (right)" }] }
     ],
     st: {}, setup() {
       const s = this.st; Object.assign(s, { assign: {}, conflicts: 0, obs: {}, acc: 0, synced: 0 });
       const P = [["C1", 150, 280], ["P2", 260, 170], ["P3", 270, 400], ["P4", 400, 290], ["P5", 560, 290], ["P6", 690, 170], ["P7", 700, 400], ["C2", 810, 280]];
       P.forEach(p => node(p[0], p[1], p[2], "phone", p[0], { log: {}, obs: 0 })); meshByRange(P.map(p => p[0]), 200);
-      byId.C1.ring = css("--gold"); byId.C2.ring = css("--gold"); byId.C1.sub = "team lead A"; byId.C2.sub = "team lead B";
+      byId.C1.ring = css("--gold"); byId.C2.ring = css("--gold"); byId.C1.sub = "team leader A"; byId.C2.sub = "team leader B";
     },
-    draw(ctx) { if (!E.C.wall) return; ctx.fillStyle = css("--red"); ctx.globalAlpha = .18; ctx.fillRect(470, 120, 20, 340); ctx.globalAlpha = 1; ctx.fillStyle = css("--red"); ctx.font = "700 11px Inter, sans-serif"; ctx.textAlign = "center"; ctx.fillText("PARTITION", 480, 110); },
+    draw(ctx) { if (!E.C.wall) return; ctx.fillStyle = css("--red"); ctx.globalAlpha = .18; ctx.fillRect(470, 120, 20, 340); ctx.globalAlpha = 1; ctx.fillStyle = css("--red"); ctx.font = "700 11px Inter, sans-serif"; ctx.textAlign = "center"; ctx.fillText("SPLIT", 480, 110); },
     onControl(id) {
       const s = this.st;
-      if (id === "wall") { const l = linkBetween("P4", "P5"); if (l) l.up = !E.C.wall; log(E.C.wall ? "Wall: P4–P5 link down. Two partitions, each fully operational." : "Wall gone — partitions rejoin, sync begins", E.C.wall ? "bad" : "ok"); if (!E.C.wall) this.sync(); }
-      if (id === "a1" || id === "a2") { const from = id === "a1" ? "C1" : "C2"; const to = id === "a1" ? "P3" : "P7"; const rec = { task: "T-7", to, by: from, t: E.t, epoch: from }; log(from + " assigns T-7 → " + to, "sys"); this.propagate(from, rec); }
+      if (id === "wall") { const l = linkBetween("P4", "P5"); if (l) l.up = !E.C.wall; log(E.C.wall ? "Wall: the P4–P5 link is cut. Two halves, each still working." : "Wall gone — the halves join back and compare notes", E.C.wall ? "bad" : "ok"); if (!E.C.wall) this.sync(); }
+      if (id === "a1" || id === "a2") { const from = id === "a1" ? "C1" : "C2"; const to = id === "a1" ? "P3" : "P7"; const rec = { task: "T-7", to, by: from, t: E.t, epoch: from }; log(from + " gives task T-7 to " + to, "sys"); this.propagate(from, rec); }
     },
     propagate(from, rec) { const reach = reachable(from); reach.forEach(id => { const n = byId[id]; const prev = n.log["T-7"]; if (prev && prev.to !== rec.to) { n.conflict = true; } n.log["T-7"] = prev && prev.to !== rec.to ? { ...rec, conflict: [prev, rec] } : rec; }); const path = [...reach].filter(x => x !== from); path.forEach((id, i) => { const p = bfs(from, id); if (p) this.hop(p, 0, css("--gold")); }); this.badges(); },
     hop(path, i, color) { if (i >= path.length - 1) return; send(path[i], path[i + 1], { color, r: 4, onArrive: () => this.hop(path, i + 1, color) }); },
-    sync() { const s = this.st; const all = E.nodes; const recs = all.map(n => n.log["T-7"]).filter(Boolean); const uniq = {}; recs.forEach(r => { uniq[r.to] = r; }); const vals = Object.values(uniq); all.forEach(n => { if (vals.length > 1) { n.log["T-7"] = { task: "T-7", conflict: vals, to: vals.map(v => v.to).join(" & ") }; n.conflict = true; } else if (vals.length === 1) n.log["T-7"] = vals[0]; n.obs = 7; }); s.synced++; if (vals.length > 1) { s.conflicts = 1; log("Sync: T-7 was assigned to " + vals.map(v => v.to + " (by " + v.by + ")").join(" and ") + " — conflict kept visible for the coordinator to resolve", "warn"); } else log("Sync: observations converged; no conflicts", "ok"); for (let i = 0; i < 4; i++) { send("P4", "P5", { color: css("--blue"), r: 4, dur: 200 + i * 120 }); send("P5", "P4", { color: css("--blue"), r: 4, dur: 200 + i * 120 }); } this.badges(); },
-    badges() { E.nodes.forEach(n => { const r = n.log["T-7"]; n.badge = r ? (r.conflict ? "T-7 CONFLICT" : "T-7 → " + r.to) : ""; n.badgeColor = r && r.conflict ? css("--red") : css("--green"); }); },
+    sync() { const s = this.st; const all = E.nodes; const recs = all.map(n => n.log["T-7"]).filter(Boolean); const uniq = {}; recs.forEach(r => { uniq[r.to] = r; }); const vals = Object.values(uniq); all.forEach(n => { if (vals.length > 1) { n.log["T-7"] = { task: "T-7", conflict: vals, to: vals.map(v => v.to).join(" & ") }; n.conflict = true; } else if (vals.length === 1) n.log["T-7"] = vals[0]; n.obs = 7; }); s.synced++; if (vals.length > 1) { s.conflicts = 1; log("Comparing notes: T-7 was given to " + vals.map(v => v.to + " (by " + v.by + ")").join(" and ") + " — shown as a clash for the coordinator to sort out", "warn"); } else log("Comparing notes: everyone agrees, no clashes", "ok"); for (let i = 0; i < 4; i++) { send("P4", "P5", { color: css("--blue"), r: 4, dur: 200 + i * 120 }); send("P5", "P4", { color: css("--blue"), r: 4, dur: 200 + i * 120 }); } this.badges(); },
+    badges() { E.nodes.forEach(n => { const r = n.log["T-7"]; n.badge = r ? (r.conflict ? "T-7 CLASH" : "T-7 → " + r.to) : ""; n.badgeColor = r && r.conflict ? css("--red") : css("--green"); }); },
     tick(dt) { const s = this.st; s.acc += dt; if (s.acc > 1500) { s.acc = 0; E.nodes.forEach(n => { n.obs = reachable(n.id).size - 1; flood(n.id, null, { color: css("--green"), r: 3, payload: { obs: 1, ttl: 0 } }); }); } },
-    metrics() { const s = this.st; const halves = new Set(E.nodes.map(n => [...reachable(n.id)].sort()[0])).size; const conf = E.nodes.filter(n => n.log["T-7"] && n.log["T-7"].conflict).length; return [{ label: "partitions", value: halves, cls: halves > 1 ? "warn" : "good" }, { label: "phones seeing a T-7 conflict", value: conf + " / 8", cls: conf ? "bad" : "good" }, { label: "peers observed by C1", value: byId.C1 ? byId.C1.obs : 0 }, { label: "peers observed by C2", value: byId.C2 ? byId.C2.obs : 0 }, { label: "syncs completed", value: s.synced }]; },
+    metrics() { const s = this.st; const halves = new Set(E.nodes.map(n => [...reachable(n.id)].sort()[0])).size; const conf = E.nodes.filter(n => n.log["T-7"] && n.log["T-7"].conflict).length; return [{ label: "separate groups", value: halves, cls: halves > 1 ? "warn" : "good" }, { label: "phones showing the T-7 clash", value: conf + " / 8", cls: conf ? "bad" : "good" }, { label: "phones C1 can see", value: byId.C1 ? byId.C1.obs : 0 }, { label: "phones C2 can see", value: byId.C2 ? byId.C2.obs : 0 }, { label: "times notes were compared", value: s.synced }]; },
     steps: [
-      { text: "<b>One cluster.</b> Every phone sees seven peers. Team leads C1 and C2 share one picture.", run() { } },
-      { text: "<b>The wall goes up.</b> The P4–P5 link is gone and the cluster is two partitions of four. Each half keeps flooding positions and can keep dispatching — nothing waits for a leader.", run() { setControl("wall", true); E.sc.onControl("wall"); } },
-      { text: "<b>Both leads assign T-7.</b> C1 gives it to P3; C2, unaware, gives it to P7. Each decision propagates within its own half.", run() { E.sc.onControl("a1"); after(600, () => E.sc.onControl("a2")); } },
-      { text: "<b>Rejoin.</b> The wall comes down, the halves exchange logs, and observations converge. T-7 has two assignees — the sync does <i>not</i> pick one silently; every phone shows the conflict for a human to resolve.", run() { setControl("wall", false); E.sc.onControl("wall"); } }
+      { text: "<b>One group.</b> Every phone can see the other seven. Team leaders C1 and C2 see the same picture.", run() { } },
+      { text: "<b>The wall goes up.</b> The P4–P5 link is cut and there are now two groups of four. Each half keeps sharing locations and can keep giving out tasks. Nothing waits for a boss.", run() { setControl("wall", true); E.sc.onControl("wall"); } },
+      { text: "<b>Both leaders give out T-7.</b> C1 gives it to P3. C2, not knowing, gives it to P7. Each decision spreads within its own half.", run() { E.sc.onControl("a1"); after(600, () => E.sc.onControl("a2")); } },
+      { text: "<b>Joining back up.</b> The wall comes down and the halves compare notes. T-7 now has two people on it. The app does <i>not</i> pick one quietly — every phone shows the clash so a person can sort it out.", run() { setControl("wall", false); E.sc.onControl("wall"); } }
     ]
   });
 

@@ -15,11 +15,11 @@
 <header class="top">
   <a class="brand" href="../index.html">
     <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M3 22c6-9 20-9 26 0" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="6" cy="20" r="2.4" fill="currentColor"/><circle cx="16" cy="15.4" r="2.4" fill="currentColor"/><circle cx="26" cy="20" r="2.4" fill="currentColor"/><path d="M6 20l10-4.6L26 20" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".6"/></svg>
-    <span><b>RescueLINK</b><small>Mesh communication simulator</small></span>
+    <span><b>RescueLINK</b><small>How the phones talk · simulator</small></span>
   </a>
   <span class="sp"></span>
   <div class="speed" role="group" aria-label="Simulation speed">
-    <button type="button" id="btn-pause" class="tb" title="Pause / resume">⏸</button>
+    <button type="button" id="btn-pause" class="tb" title="Pause / play">⏸</button>
     <button type="button" class="tb spd" data-s="1">1×</button>
     <button type="button" class="tb spd on" data-s="4">4×</button>
     <button type="button" class="tb spd" data-s="20">20×</button>
@@ -39,7 +39,7 @@
         <h1 id="sc-title"></h1>
         <p class="blurb" id="sc-blurb"></p>
       </div>
-      <button type="button" class="btn" id="btn-reset">↺ Reset scenario</button>
+      <button type="button" class="btn" id="btn-reset">↺ Start over</button>
     </div>
     <div class="canvas-wrap">
       <canvas id="net" width="960" height="560" aria-label="Network simulation canvas"></canvas>
@@ -50,22 +50,22 @@
       <div class="narr-text" id="narr"></div>
       <div class="narr-actions">
         <button type="button" class="btn primary" id="btn-next">Next step →</button>
-        <label class="auto"><input type="checkbox" id="auto-run"> auto-run</label>
+        <label class="auto"><input type="checkbox" id="auto-run"> play by itself</label>
       </div>
     </div>
   </main>
 
   <aside class="side">
     <section class="panel">
-      <div class="panel-title">Controls</div>
+      <div class="panel-title">Try it</div>
       <div class="panel-body" id="controls"></div>
     </section>
     <section class="panel">
-      <div class="panel-title">Live metrics</div>
+      <div class="panel-title">The numbers</div>
       <div class="panel-body metrics" id="metrics"></div>
     </section>
     <section class="panel grow">
-      <div class="panel-title">Event log <span class="sub" id="log-cnt"></span></div>
+      <div class="panel-title">What happened <span class="sub" id="log-cnt"></span></div>
       <div class="log" id="log"></div>
     </section>
   </aside>
