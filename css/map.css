@@ -1,0 +1,166 @@
+/* ============================================================
+   RescueLINK — Sector map surface (terrain canvas + topology SVG)
+   Used by control.html and view.html.
+   ============================================================ */
+
+.map-shell {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  background: var(--navy-900);
+  overflow: hidden;
+}
+.map-stage {
+  position: absolute;
+  inset: 0;
+  padding: 48px 12px 44px;
+}
+.map-box {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-soft);
+}
+#leaflet-map { position: absolute; inset: 0; background: #1d2a1f; }
+#leaflet-map.terrain { background: var(--navy-900); }
+.leaflet-container { font-family: inherit; }
+.leaflet-overlay-pane svg { overflow: visible; }
+.leaflet-control-attribution { font-size: 10px; background: rgba(255,255,255,.75); }
+.map-box.assigning .leaflet-container, .map-box.assigning svg { cursor: crosshair !important; }
+
+/* ---------- Overlays ---------- */
+.map-toolbar {
+  position: absolute;
+  top: 20px; left: 20px;
+  display: flex; gap: 6px; flex-wrap: wrap;
+  z-index: 1000; /* above Leaflet panes (400–700) */
+}
+.map-status {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 0 20px;
+  height: 40px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border-color);
+  font-size: 12px;
+}
+.map-status .ms-item { display: flex; gap: 6px; align-items: baseline; }
+.map-status .ms-k { color: var(--text-dim); }
+.map-status b { font-weight: 700; }
+.map-toolbar { top: 50px; }
+.map-legend {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  z-index: 1000;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  align-items: center;
+  padding: 8px 20px;
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border-color);
+  font-size: 11px;
+}
+.map-legend .k { display: flex; align-items: center; gap: 6px; color: var(--text-dim); }
+.map-legend .sw { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.map-legend .ln { width: 18px; height: 0; border-top: 3px solid var(--link); flex: none; }
+.map-legend .ln.lora { border-top-style: dashed; border-top-width: 2px; border-color: var(--p1); }
+.map-legend .ln.gap { border-top-style: dotted; border-top-width: 2px; border-color: var(--p0); }
+.map-legend .dia { width: 9px; height: 9px; transform: rotate(45deg); background: var(--gold-500); flex: none; }
+
+.sm-tooltip {
+  position: fixed;
+  pointer-events: none;
+  z-index: 5000;
+  background: var(--bg-panel);
+  border: 1px solid var(--gold-500);
+  color: var(--text);
+  padding: 6px 9px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  box-shadow: var(--shadow-soft);
+  max-width: 260px;
+  transform: translate(12px, 12px);
+}
+.sm-tooltip[hidden] { display: none; }
+.sm-tooltip .t { font-weight: 700; }
+.sm-tooltip .m { font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+/* ---------- SVG layers ---------- */
+.sm-sector { fill: #fff; fill-opacity: .06; stroke: #fff; stroke-opacity: .7; stroke-width: 1.5; pointer-events: none; }
+.sm-zone { fill: transparent; stroke: #fff; stroke-opacity: .55; stroke-width: .8; stroke-dasharray: 3 4; cursor: pointer; }
+.sm-zone.MEDIUM { fill: var(--p1); fill-opacity: .10; }
+.sm-zone.HIGH { fill: var(--p1); fill-opacity: .18; }
+.sm-zone.CRITICAL { fill: var(--p0); fill-opacity: .20; }
+.terrain .sm-zone.MEDIUM { fill-opacity: .04; } .terrain .sm-zone.HIGH { fill-opacity: .08; } .terrain .sm-zone.CRITICAL { fill-opacity: .10; }
+.sm-zone:hover, .sm-zone.sel { stroke: var(--gold-500); stroke-width: 1.4; stroke-dasharray: none; }
+.sm-zone-lbl { font: 700 calc(10px * var(--k, 1)) 'Inter', sans-serif; letter-spacing: .1em; fill: var(--text); paint-order: stroke; stroke: #fff; stroke-width: 3px; pointer-events: none; text-transform: uppercase; }
+.sm-place { font: 700 calc(10px * var(--k, 1)) 'Inter', sans-serif; letter-spacing: .1em; fill: var(--text); paint-order: stroke; stroke: #fff; stroke-width: 3px; text-transform: uppercase; }
+.sm-note { font: 500 calc(9px * var(--k, 1)) var(--font-mono); fill: var(--text); paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+.sm-hq { font: 800 calc(10px * var(--k, 1)) 'Inter', sans-serif; letter-spacing: .1em; fill: var(--text); paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+.sm-river { fill: none; stroke: var(--water); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; opacity: .8; }
+.sm-road { fill: none; stroke: var(--text-dim); stroke-width: 1.6; stroke-dasharray: 6 4; opacity: .6; }
+.sm-scar { fill: var(--p0); fill-opacity: .22; stroke: var(--p0); stroke-width: 1.4; stroke-dasharray: 4 3; }
+
+.sm-lora { stroke: #fbbf24; stroke-width: 2.4; stroke-dasharray: 10 7; opacity: .95; fill: none; paint-order: stroke; }
+.terrain .sm-lora { stroke: var(--p1); }
+.sm-hqlink { stroke: #fff; stroke-opacity: .8; stroke-width: 1.2; stroke-dasharray: 1 4; fill: none; }
+.sm-gap { stroke: #ff5a5a; stroke-width: 2.6; stroke-dasharray: 2 6; fill: none; }
+.sm-gap-lbl { font: 700 calc(11px * var(--k, 1)) var(--font-mono); fill: var(--p0); paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+.sm-link { stroke: #34d399; stroke-linecap: round; cursor: pointer; }
+.sm-link-under { stroke: #fff; stroke-opacity: .55; stroke-linecap: round; pointer-events: none; }
+.terrain .sm-link { stroke: var(--link); }
+.sm-cluster { fill: #fff; fill-opacity: .16; stroke: #fff; stroke-opacity: .8; stroke-width: 1.2; cursor: zoom-in; }
+.terrain .sm-cluster { fill: var(--p3); fill-opacity: .07; stroke: var(--p3); stroke-opacity: .35; }
+.sm-cluster:hover { fill-opacity: .14; }
+.sm-cluster.none { fill: var(--p0); fill-opacity: .18; stroke: var(--p0); stroke-dasharray: 4 3; }
+.terrain .sm-cluster.none { fill-opacity: .06; }
+.sm-cluster-lbl { font: 700 calc(11px * var(--k, 1)) 'Inter', sans-serif; fill: var(--text); text-anchor: middle; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+.sm-cluster-sub { font: 500 calc(9.5px * var(--k, 1)) 'Inter', sans-serif; fill: var(--text-dim); text-anchor: middle; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+.sm-link-hit { stroke: transparent; stroke-width: 14; cursor: pointer; }
+
+.sm-task { fill: none; stroke: #fff; stroke-width: 1.6; }
+.sm-task-ln { stroke: #fff; stroke-width: 1.2; stroke-dasharray: 3 3; fill: none; }
+.sm-task-lbl { font: 600 calc(10px * var(--k, 1)) var(--font-mono); fill: var(--text); paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+
+.sm-esp { cursor: pointer; }
+.sm-esp rect { fill: var(--gold-500); stroke: #fff; stroke-width: 2.5; }
+.sm-esp.off rect { fill: var(--text-dim); }
+.sm-esp text { font: 700 calc(10px * var(--k, 1)) var(--font-mono); fill: var(--text); text-anchor: middle; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+.sm-esp .dish { fill: none; stroke: var(--text); stroke-width: 1.5; }
+
+.sm-node { cursor: pointer; }
+.sm-node circle.b { stroke: #fff; stroke-width: 2; }
+.sm-node text { font: 800 11px 'Inter', sans-serif; fill: #fff; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.sm-node text.tag { font: 700 calc(9px * var(--k, 1)) var(--font-mono); fill: var(--text); dominant-baseline: auto; paint-order: stroke; stroke: #fff; stroke-width: 3px; stroke-linejoin: round; }
+.sm-node circle.ring { fill: none; stroke: transparent; }
+.sm-node.sel circle.ring { stroke: var(--gold-500); stroke-width: 2.5; }
+.sm-node.sos circle.pulse {
+  fill: none; stroke: var(--p0); stroke-width: 2;
+  transform-box: fill-box; transform-origin: center;
+  animation: sm-pulse 1.4s ease-out infinite;
+}
+.sm-node .gw { fill: var(--p3); stroke: #fff; stroke-width: 2; }
+.sm-node .q { font: 700 9px var(--font-mono); fill: var(--p1); text-anchor: start; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+@keyframes sm-pulse { 0% { transform: scale(1); opacity: .9; } 100% { transform: scale(2.4); opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .sm-node.sos circle.pulse { animation: none; opacity: .6; }
+  .vu i { transition: none; }
+}
+@media (max-width: 900px) {
+  .map-shell { height: auto; }
+  .map-stage { position: static; padding: 12px 16px; height: 420px; }
+  .map-status { position: static; height: auto; flex-wrap: wrap; padding: 8px 16px; }
+  .map-legend { position: static; }
+  .map-toolbar { position: static; padding: 12px 16px 0; }
+  .map-stage { padding: 12px 16px; }
+}

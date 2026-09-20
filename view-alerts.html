@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RescueLINK — Alerts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header" id="app-header"></header>
+    <div id="emergency-banner"></div>
+    <nav class="main-nav" id="main-nav"></nav>
+
+    <div class="page-content">
+      <h1 class="page-title">Alerts</h1>
+      <p class="page-subtitle">Two feeds. <b>Sensor alerts</b> are what the alert engine hears from IMD, CWC, NCS, GSI and the satellite EO pass — they reach the backend over the agencies' own national telemetry, so they keep arriving when the sector is dark. <b>Responder alerts</b> are what the field raises (SOS, backup) or what the platform infers about it (unreachable, low battery, overdue check-in, entered a critical cell, broadcast not acknowledged). Read only — actions return 403.</p>
+
+      <div class="alert-summary">
+        <div class="stat-tile"><div class="num" id="st-sensor">0</div><div class="lbl">Sensor alerts open</div></div>
+        <div class="stat-tile p0"><div class="num" id="st-sensor-crit">0</div><div class="lbl">of them critical</div></div>
+        <div class="stat-tile"><div class="num" id="st-stations">0</div><div class="lbl">Stations above threshold</div></div>
+        <div class="stat-tile"><div class="num" id="st-resp">0</div><div class="lbl">Responder alerts open</div></div>
+        <div class="stat-tile p0"><div class="num" id="st-sos">0</div><div class="lbl">SOS active</div></div>
+        <div class="stat-tile p0"><div class="num" id="st-offline">0</div><div class="lbl">Devices unreachable</div></div>
+      </div>
+
+      <div class="page-grid alerts-grid">
+        <div style="display:flex;flex-direction:column;gap:20px;min-width:0">
+          <section class="panel">
+            <div class="panel-title">Sensor alerts <span class="panel-sub" id="sensor-cnt"></span></div>
+            <div class="panel-body" style="padding-bottom:0"><div class="seg" id="sensor-filter"></div></div>
+            <div class="panel-body" id="sensor-alerts"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-title">Sensor network <span class="panel-sub">click a station for readings</span></div>
+            <div class="panel-body tight"><div class="stations" id="stations"></div></div>
+          </section>
+        </div>
+        <section class="panel" style="min-width:0">
+          <div class="panel-title">Responder alerts <span class="panel-sub" id="resp-cnt"></span></div>
+          <div class="panel-body" style="padding-bottom:0"><div class="seg" id="resp-filter"></div></div>
+          <div class="panel-body" id="resp-alerts"></div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/alerts.js"></script>
+  <script>
+    (function () {
+      "use strict";
+      if (!RLAuth.requireRole("observer")) return;
+      RLAuth.renderHeader();
+      RLAuth.renderNav(RLAuth.NAV.observer, "view-alerts.html");
+      RescueLINKAlerts.mount({ control: false });
+    })();
+  </script>
+</body>
+</html>

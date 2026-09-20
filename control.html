@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RescueLINK — Coordinator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/map.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header" id="app-header"></header>
+    <div id="emergency-banner"></div>
+    <nav class="main-nav" id="main-nav"></nav>
+
+    <div class="dashboard-body">
+      <!-- LEFT RAIL -->
+      <aside class="left-rail">
+
+        <section class="panel">
+          <div class="panel-title">Alert Engine <span class="panel-sub">2-layer · explainable</span></div>
+          <div class="panel-body">
+            <div class="level-box CRITICAL" id="level-box">
+              <div class="big" id="level-big">—</div>
+              <div class="desc" id="level-desc"></div>
+            </div>
+            <div class="zlist" id="zlist"></div>
+            <div class="explain" id="explain"></div>
+            <div class="chart" id="rain-chart"></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-title">Forces on Ground <span class="panel-sub" id="force-cnt"></span></div>
+          <div class="panel-body" style="padding-bottom:0">
+            <div class="seg" role="group" aria-label="Roster view"><button class="btn-ghost btn-xs active" id="roster-agency">By agency</button><button class="btn-ghost btn-xs" id="roster-group">By group</button></div>
+          </div>
+          <div class="panel-body" id="forces"></div>
+        </section>
+
+      </aside>
+
+      <!-- MAP -->
+      <div class="map-shell">
+        <div class="map-toolbar">
+          <button class="btn-secondary btn-sm" id="btn-relay" title="Drop an ESP32 + LoRa relay at the Kottamala estate knoll">◆ Deploy dropped relay (L4)</button>
+          <button class="btn-secondary btn-sm" id="btn-zones">Risk cells</button>
+          <button class="btn-secondary btn-sm" id="btn-base" title="Switch between satellite imagery and the drawn terrain">Terrain</button>
+          <span class="zoom-ctl"><button class="btn-secondary btn-sm" id="zoom-in" title="Zoom in">+</button><button class="btn-secondary btn-sm" id="zoom-out" title="Zoom out">−</button><button class="btn-secondary btn-sm" id="zoom-fit" title="Fit whole sector">Fit</button><span class="mono" id="zoom-lvl">1.0×</span></span>
+          <span class="sim-note">scroll to zoom · drag to pan · click a group halo to zoom into it</span>
+        </div>
+        <div class="map-status" id="map-status">
+          <span class="ms-item"><span class="ms-k">Command link</span><b id="hq-link">—</b></span>
+          <span class="ms-item"><span class="ms-k">Round trip</span><b id="hq-rtt">—</b></span>
+          <span class="ms-item"><span class="ms-k">Clusters reachable</span><b id="hq-clusters">—</b></span>
+          <span class="ms-item"><span class="ms-k">Waiting for a link</span><b id="hq-queued">—</b></span>
+        </div>
+        <div class="map-stage">
+          <div class="map-box" id="mapbox">
+            <div id="leaflet-map" aria-label="Satellite map of the incident sector"></div>
+            <canvas id="terrain" width="2000" height="1240" hidden aria-hidden="true"></canvas>
+            <svg id="map" viewBox="0 0 1000 620" role="img" aria-label="Mesh topology overlay">
+              <defs>
+                <pattern id="sm-hatch" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="8" stroke="#C4291F" stroke-width="1" opacity=".35"/></pattern>
+              </defs>
+              <g id="sm-zones"></g>
+              <g id="sm-static"></g>
+              <g id="sm-lora"></g>
+              <g id="sm-clusters"></g>
+              <g id="sm-gaps"></g>
+              <g id="sm-links"></g>
+              <g id="sm-tasks"></g>
+              <g id="sm-esp"></g>
+              <g id="sm-nodes"></g>
+            </svg>
+          </div>
+        </div>
+        <div class="map-legend">
+          <span class="k"><span class="sw" style="background:var(--ag-ndrf)"></span>NDRF</span>
+          <span class="k"><span class="sw" style="background:var(--ag-sdrf)"></span>SDRF</span>
+          <span class="k"><span class="sw" style="background:var(--ag-pol)"></span>Police</span>
+          <span class="k"><span class="sw" style="background:var(--ag-fire)"></span>Fire</span>
+          <span class="k"><span class="sw" style="background:var(--ag-vol)"></span>Volunteers</span>
+          <span class="k"><span class="ln"></span>Phone-to-phone link</span>
+          <span class="k"><span class="ln lora"></span>LoRa bridge link</span>
+          <span class="k"><span class="ln gap"></span>Gap</span>
+          <span class="k"><span class="dia"></span>ESP32 bridge</span>
+          <span class="k"><span class="sw" style="background:var(--p3);width:8px;height:8px"></span>Has internet</span>
+        </div>
+      </div>
+
+      <!-- RIGHT PANEL -->
+      <aside class="right-panel">
+        <section class="panel">
+          <div class="panel-title">Selected Responder <span class="panel-sub" id="sel-hint">click a node</span></div>
+          <div class="panel-body" id="selected"></div>
+        </section>
+        <section class="panel">
+          <div class="panel-title">Backup &amp; SOS Queue <span class="panel-sub" id="req-cnt"></span></div>
+          <div class="panel-body" id="requests"></div>
+        </section>
+        <section class="panel" id="photos-panel">
+          <div class="panel-title">Photos from the Field <span class="panel-sub" id="photo-cnt"></span></div>
+          <div class="panel-body">
+            <div class="seg" id="photo-filter"></div>
+            <div class="photo-grid" id="photos"></div>
+          </div>
+        </section>
+        <section class="panel">
+          <div class="panel-title">Emergency Broadcast <span class="panel-sub">all clusters</span></div>
+          <div class="panel-body">
+            <textarea id="bc-text" class="sm-input" rows="3" aria-label="Broadcast message">Secondary slide risk on upper slope. All teams above the 900 m contour pull back to grid E-3 and hold. Ack via PTT.</textarea>
+            <div class="bytes"><span>LoRa frame <b id="bc-lora">0/237 B</b></span><span>Satellite SBD <b id="bc-sat">0/340 B</b></span></div>
+            <div class="inline-form"><button class="btn-primary btn-sm" id="btn-bc">Send to all clusters</button><span class="sim-note">Broadcast type · TTL 8 · dedup by packetId</span></div>
+            <div class="deliv" id="deliv"></div>
+          </div>
+        </section>
+      </aside>
+    </div>
+
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/mesh.js"></script>
+  <script src="js/control.js"></script>
+</body>
+</html>

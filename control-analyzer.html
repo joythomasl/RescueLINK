@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RescueLINK — Satellite Imagery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header" id="app-header"></header>
+    <div id="emergency-banner"></div>
+    <nav class="main-nav" id="main-nav"></nav>
+
+    <div class="page-content">
+      <h1 class="page-title">Satellite EO Imagery</h1>
+      <p class="page-subtitle">Before/after change detection on satellite earth-observation tiles — one of the four sensor feeds (with seismic, river gauges and rainfall) behind the alert engine's dynamic layer. Reaches the backend over national telemetry, not local cell towers, so it keeps arriving when the sector is dark.</p>
+      <div class="sim-label">Demo — tiles and analysis values are simulated.</div>
+
+      <label for="site-select" style="max-width:300px;">Sample site</label>
+      <select id="site-select" style="max-width:300px;">
+        <option value="a">Site A — Kottamala ridge, slide crown (Z4)</option>
+        <option value="b">Site B — Puthur Kadavu river bend (Z6)</option>
+        <option value="c">Site C — Elanad hamlet run-out (Z5)</option>
+      </select>
+
+      <div class="compare-wrap" id="compare-wrap">
+        <img id="img-before" src="assets/sat-site-a-before.svg" alt="Before">
+        <div class="compare-after-clip" id="compare-after-clip">
+          <img id="img-after" src="assets/sat-site-a-after.svg" alt="After">
+        </div>
+        <div class="compare-handle" id="compare-handle"></div>
+        <span class="compare-label before">BEFORE</span>
+        <span class="compare-label after">AFTER</span>
+      </div>
+
+      <div class="panel analysis-panel">
+        <div class="panel-title">Analysis</div>
+        <div class="analysis-stats">
+          <div class="stat-tile"><div class="num tabular" id="an-area">0.00</div><div class="lbl">Change area (km²)</div></div>
+          <div class="stat-tile"><div class="num tabular" id="an-structures">0</div><div class="lbl">Structures affected</div></div>
+          <div class="stat-tile"><div class="num tabular" id="an-confidence">0%</div><div class="lbl">Confidence</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    (function () {
+      "use strict";
+      if (!RLAuth.requireRole("control")) return;
+      RLAuth.renderHeader();
+      RLAuth.renderNav(RLAuth.NAV.control, "control-analyzer.html");
+
+      const SITES = window.RESCUELINK_DATA.IMAGERY_SITES;
+
+      function loadSite(key) {
+        const s = SITES[key];
+        document.getElementById("img-before").src = s.before;
+        document.getElementById("img-after").src = s.after;
+        document.getElementById("an-area").textContent = s.area;
+        document.getElementById("an-structures").textContent = s.structures;
+        document.getElementById("an-confidence").textContent = s.confidence + "%";
+      }
+
+      document.getElementById("site-select").addEventListener("change", (e) => loadSite(e.target.value));
+      loadSite("a");
+
+      // Before/after slider
+      const wrap = document.getElementById("compare-wrap");
+      const clip = document.getElementById("compare-after-clip");
+      const handle = document.getElementById("compare-handle");
+      let dragging = false;
+
+      function setSplit(pct) {
+        pct = Math.max(0, Math.min(100, pct));
+        clip.style.clipPath = "inset(0 " + (100 - pct) + "% 0 0)";
+        handle.style.left = pct + "%";
+      }
+
+      function posFromEvent(e) {
+        const rect = wrap.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        return ((clientX - rect.left) / rect.width) * 100;
+      }
+
+      handle.addEventListener("mousedown", () => dragging = true);
+      handle.addEventListener("touchstart", () => dragging = true);
+      window.addEventListener("mouseup", () => dragging = false);
+      window.addEventListener("touchend", () => dragging = false);
+      window.addEventListener("mousemove", (e) => { if (dragging) setSplit(posFromEvent(e)); });
+      window.addEventListener("touchmove", (e) => { if (dragging) setSplit(posFromEvent(e)); });
+      wrap.addEventListener("click", (e) => { if (e.target === handle) return; setSplit(posFromEvent(e)); });
+
+      setSplit(50);
+    })();
+  </script>
+</body>
+</html>

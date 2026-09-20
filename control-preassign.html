@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RescueLINK — Pre-assignment &amp; Routes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header" id="app-header"></header>
+    <div id="emergency-banner"></div>
+    <nav class="main-nav" id="main-nav"></nav>
+
+    <div class="page-content">
+      <h1 class="page-title">Pre-assignment &amp; Evacuation Routes</h1>
+      <p class="page-subtitle">Before impact, registered forces are attached to flagged risk cells and evacuation routes are pushed to responder apps, so the plan is already on every phone when the network goes dark. The Layer 1 static classification is cached on devices at briefing for the same reason.</p>
+
+      <div class="page-grid">
+        <section class="panel">
+          <div class="panel-title">Flagged cells <span class="panel-sub" id="cell-sub"></span></div>
+          <div class="panel-body tight"><div class="cell-list" id="cells"></div></div>
+        </section>
+
+        <div style="display:flex;flex-direction:column;gap:20px;">
+          <section class="panel">
+            <div class="panel-title">Registered forces <span class="panel-sub">not yet committed</span></div>
+            <div class="panel-body tight"><div class="force-pool" id="pool"></div></div>
+          </section>
+          <section class="panel">
+            <div class="panel-title">Evacuation routes <span class="panel-sub">pre-loaded in apps</span></div>
+            <div class="panel-body tight" id="routes"></div>
+            <div class="panel-body" style="border-top:1px solid var(--border-color);">
+              <button class="btn-primary btn-sm" id="push-btn">Push plan to all registered devices</button>
+              <span class="sim-note" style="margin-left:8px;">Cached on-device · survives blackout</span>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    (function () {
+      "use strict";
+      if (!RLAuth.requireRole("control")) return;
+      RLAuth.renderHeader();
+      RLAuth.renderNav(RLAuth.NAV.control, "control-preassign.html");
+
+      const D = window.RESCUELINK_DATA;
+      const ORDER = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
+      const cells = D.ZONES.map(z => {
+        let i = ORDER.indexOf(z.base); if (z.trig >= 0.8) i++; else if (z.trig < 0.3) i--;
+        return { ...z, level: ORDER[Math.max(0, Math.min(3, i))], forces: [] };
+      });
+      // Plausible starting plan: the two worst cells already have forces attached.
+      cells.find(c => c.id === "Z4").forces.push("NDRF-4B-T2");
+      cells.find(c => c.id === "Z5").forces.push("NDRF-4B-T3", "FRS-KLP-1");
+      cells.find(c => c.id === "Z6").forces.push("SDRF-WYD-1");
+      const routes = D.EVAC_ROUTES.map(r => ({ ...r }));
+
+      const byId = Object.fromEntries(D.REGISTERED_FORCES.map(f => [f.id, f]));
+      const committed = () => new Set(cells.flatMap(c => c.forces));
+      const levelColor = l => l === "LOW" ? "var(--p3)" : l === "CRITICAL" ? "var(--p0)" : "var(--p1)";
+
+      function render() {
+        const used = committed();
+        const free = D.REGISTERED_FORCES.filter(f => !used.has(f.id));
+        const flagged = cells.filter(c => c.level !== "LOW");
+        document.getElementById("cell-sub").textContent = flagged.length + " of " + cells.length + " cells at MEDIUM or above";
+        document.getElementById("cells").innerHTML = cells
+          .slice().sort((a, b) => ORDER.indexOf(b.level) - ORDER.indexOf(a.level))
+          .map(c => '<div class="cell-row"><span class="bar ' + c.level + '"></span><div>' +
+            '<div class="n">' + c.id + ' · ' + c.name + '</div>' +
+            '<div class="s">' + c.sub + ' · baseline ' + c.base + ' (p=' + c.baseP.toFixed(2) + ') · trigger ' + Math.round(c.trig * 100) + '%</div>' +
+            '<div class="assigned">' + (c.forces.length ? c.forces.map(id => '<span class="chip chip-gold" data-unassign="' + c.id + '|' + id + '" title="Remove">' + byId[id].name + ' · ' + byId[id].strength + '</span>').join("") : '<span class="text-dim" style="font-size:11.5px;">no forces attached</span>') + '</div>' +
+            '<div class="inline-form"><select class="sm-input" data-cell="' + c.id + '" aria-label="Attach force to ' + c.id + '">' +
+              '<option value="">— attach a registered force —</option>' +
+              free.map(f => '<option value="' + f.id + '">' + f.name + ' · ' + f.capability + ' · ' + f.strength + '</option>').join("") +
+            '</select><button class="btn-secondary btn-xs" data-attach="' + c.id + '">Attach</button></div>' +
+            '</div><span class="lv" style="color:' + levelColor(c.level) + '">' + c.level + '</span></div>').join("");
+
+        document.getElementById("pool").innerHTML = free.length ? free.map(f =>
+          '<div class="fp"><span class="agency-dot" style="background:' + D.AGENCIES[f.agency].color + '"></span><div><div>' + f.name + '</div><div class="m">' + f.base + ' · ' + f.capability + '</div></div><span class="mono">' + f.strength + '</span></div>').join("")
+          : '<div class="fp"><span></span><span class="text-dim">Every registered force is committed.</span><span></span></div>';
+
+        document.getElementById("routes").innerHTML = routes.map(r =>
+          '<div class="route-row"><span class="n">' + r.id + ' · ' + r.name + '</span>' +
+          '<span class="chip ' + (r.status === "Draft" ? "chip-aged" : "chip-p3") + '">' + r.status + '</span>' +
+          '<span class="s">' + r.lengthKm.toFixed(1) + ' km · ' + r.note + '</span></div>').join("");
+
+        document.querySelectorAll("[data-attach]").forEach(b => b.addEventListener("click", () => {
+          const sel = document.querySelector('select[data-cell="' + b.dataset.attach + '"]');
+          if (!sel.value) { RLAuth.toast("Pick a force first.", { type: "warn" }); return; }
+          cells.find(c => c.id === b.dataset.attach).forces.push(sel.value);
+          RLAuth.toast(byId[sel.value].name + " attached to " + b.dataset.attach + ".", { type: "success" });
+          render();
+        }));
+        document.querySelectorAll("[data-unassign]").forEach(ch => ch.addEventListener("click", () => {
+          const [cid, fid] = ch.dataset.unassign.split("|");
+          const c = cells.find(x => x.id === cid); c.forces.splice(c.forces.indexOf(fid), 1);
+          RLAuth.toast(byId[fid].name + " released from " + cid + ".", { type: "warn" });
+          render();
+        }));
+      }
+
+      document.getElementById("push-btn").addEventListener("click", () => {
+        routes.forEach(r => { r.status = "Pushed to apps"; });
+        const devices = D.REGISTERED_FORCES.reduce((s, f) => s + f.strength, 0);
+        RLAuth.toast("Plan pushed to " + devices + " registered devices: cell classification, force attachments and " + routes.length + " routes cached for offline use.", { type: "success", title: "Pre-assignment published" });
+        render();
+      });
+
+      render();
+    })();
+  </script>
+</body>
+</html>

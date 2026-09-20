@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RescueLINK — Sign In</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/theme.css">
+<style>
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    position: relative;
+    overflow: hidden;
+  }
+  .watermark {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 640px;
+    opacity: 0.06;
+    pointer-events: none;
+  }
+  .login-wrap {
+    position: relative;
+    z-index: 2;
+    width: 400px;
+    max-width: calc(100vw - 32px);
+  }
+  .login-brand {
+    text-align: center;
+    margin-bottom: 22px;
+  }
+  .login-brand .crest {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: linear-gradient(180deg, var(--gold-400), var(--gold-500));
+    color: var(--text);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 22px;
+    margin: 0 auto 10px;
+  }
+  .login-brand h1 { font-size: 22px; margin: 0; letter-spacing: 0.5px; }
+  .login-brand p { font-size: 12px; color: var(--text-dim); margin: 4px 0 0; letter-spacing: 0.5px; }
+
+  .login-card {
+    padding: 24px 26px;
+  }
+  .error-line {
+    display: none;
+    color: var(--p0);
+    font-size: 12px;
+    margin: -6px 0 14px;
+    padding: 8px 10px;
+    background: rgba(196,41,31,0.08);
+    border: 1px solid var(--p0);
+    border-radius: var(--radius-sm);
+  }
+  .error-line.show { display: block; }
+
+  .demo-box {
+    margin-top: 20px;
+    border: 1px dashed var(--gold-500);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+  .demo-box .demo-title {
+    background: rgba(184,137,26,0.08);
+    padding: 8px 14px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--gold-700);
+  }
+  .demo-row {
+    padding: 12px 14px;
+    border-top: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+  }
+  .demo-row:hover { background: var(--navy-700); }
+  .demo-row .demo-role {
+    font-size: 12px; font-weight: 800; letter-spacing: 0.6px;
+    color: var(--gold-700); margin-bottom: 4px;
+  }
+  .demo-row .demo-creds {
+    font-size: 12px; color: var(--text-dim); font-family: monospace;
+  }
+  .demo-row .demo-desc {
+    font-size: 11px; color: var(--text-dim); margin-top: 4px;
+  }
+  .demo-foot {
+    padding: 10px 14px;
+    border-top: 1px solid var(--border-color);
+    font-size: 11px; color: var(--text-dim); line-height: 1.4;
+  }
+  .login-brand .crest { background: none; color: var(--gold-500); width: auto; height: auto; }
+</style>
+</head>
+<body>
+
+  <svg class="watermark" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 22c6-9 20-9 26 0" stroke="#B8891A" stroke-width="1.6" stroke-linecap="round"/><circle cx="6" cy="20" r="1.8" fill="#B8891A"/><circle cx="16" cy="15.4" r="1.8" fill="#B8891A"/><circle cx="26" cy="20" r="1.8" fill="#B8891A"/><path d="M6 20l10-4.6L26 20" stroke="#B8891A" stroke-width=".8"/></svg>
+
+  <div class="login-wrap">
+    <div class="login-brand">
+      <div class="crest"><svg viewBox="0 0 32 32" width="34" height="34" aria-hidden="true"><path d="M3 22c6-9 20-9 26 0" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="6" cy="20" r="2.4" fill="currentColor"/><circle cx="16" cy="15.4" r="2.4" fill="currentColor"/><circle cx="26" cy="20" r="2.4" fill="currentColor"/><path d="M6 20l10-4.6L26 20" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".6"/></svg></div>
+      <h1>RescueLINK</h1>
+      <p>CROSS-AGENCY COORDINATION WHEN THE NETWORK IS DOWN — COMMAND CENTRE</p>
+    </div>
+
+    <div class="panel login-card">
+      <form id="login-form" autocomplete="off">
+        <div class="error-line" id="error-line">Invalid email or password.</div>
+        <label for="email">Email</label>
+        <input type="email" id="email" placeholder="name@rescuelink.gov.in" required>
+        <label for="password">Password</label>
+        <input type="password" id="password" placeholder="••••••••" required>
+        <button type="submit" class="btn-primary btn-block">Sign in</button>
+      </form>
+    </div>
+
+    <div class="panel demo-box">
+      <div class="demo-title">Demo Access — click a row to autofill</div>
+      <div class="demo-row" data-email="coordinator@rescuelink.gov.in" data-password="Rescue@2026">
+        <div class="demo-role">COORDINATOR — District EOC</div>
+        <div class="demo-creds">coordinator@rescuelink.gov.in&nbsp;&nbsp;/&nbsp;&nbsp;Rescue@2026</div>
+        <div class="demo-desc">Assign tasks, displace forces, override alert level, respond to backup / SOS, broadcast</div>
+      </div>
+      <div class="demo-row" data-email="viewer@rescuelink.gov.in" data-password="Observe@2026">
+        <div class="demo-role">VIEWER — State EOC</div>
+        <div class="demo-creds">viewer@rescuelink.gov.in&nbsp;&nbsp;/&nbsp;&nbsp;Observe@2026</div>
+        <div class="demo-desc">Live positions, task states and alert status only — every action returns 403, enforced server-side</div>
+      </div>
+      <div class="demo-foot">Field responders never log in live: identity is provisioned at mission briefing (QR / pre-registration) because the network premise is zero connectivity.</div>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script>
+    document.querySelectorAll(".demo-row").forEach(row => {
+      row.addEventListener("click", () => {
+        document.getElementById("email").value = row.dataset.email;
+        document.getElementById("password").value = row.dataset.password;
+        document.getElementById("error-line").classList.remove("show");
+      });
+    });
+
+    document.getElementById("login-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      const result = RLAuth.login(email, password);
+      const errLine = document.getElementById("error-line");
+      if (!result.ok) {
+        errLine.textContent = result.error;
+        errLine.classList.add("show");
+        return;
+      }
+      window.location.href = result.role === "control" ? "control.html" : "view.html";
+    });
+
+    // If already logged in, skip straight to the right dashboard.
+    (function () {
+      const role = RLAuth.getRole();
+      if (role) window.location.href = role === "control" ? "control.html" : "view.html";
+    })();
+  </script>
+</body>
+</html>

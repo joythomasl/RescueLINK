@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RescueLINK — Field Reports</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header" id="app-header"></header>
+    <div id="emergency-banner"></div>
+    <nav class="main-nav" id="main-nav"></nav>
+
+    <div class="page-content">
+      <h1 class="page-title">Field Reports</h1>
+      <p class="page-subtitle">Structured reports from responder apps, with the rung each one arrived over. Text and GPS fit inside a satellite frame; images travel hop-by-hop over the mesh in 1 KB chunks and are held at the bridge until a gateway with internet appears — the chunk count shows exactly where a transfer stands.</p>
+      <div class="panel">
+        <table class="data-table">
+          <thead><tr><th>ID</th><th>From</th><th>Type</th><th>Cell</th><th>Report</th><th>Arrived via</th><th>Age</th><th></th></tr></thead>
+          <tbody id="reports-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    (function () {
+      "use strict";
+      if (!RLAuth.requireRole("control")) return;
+      RLAuth.renderHeader();
+      RLAuth.renderNav(RLAuth.NAV.control, "control-reports.html");
+
+      const D = window.RESCUELINK_DATA;
+      const CONTROL = true;
+      const reports = D.FIELD_REPORTS.map(r => ({ ...r, ack: false }));
+      const tierCls = t => t === "SAT" || t === "LORA" ? "chip-p1" : t === "QUEUED" ? "chip-p0" : "chip-p3";
+
+      function render() {
+        document.getElementById("reports-body").innerHTML = reports.map(r => {
+          const ph = D.PHOTOS.find(p => p.report === r.id);
+          const img = ph ? '<div class="report-photo"><button class="photo-tile small" data-ph="' + ph.id + '" title="View photo">' + RLAuth.photoFigure(ph, "thumb") + '</button><div style="font-size:11.5px;color:var(--text-dim);">' + RLAuth.photoStatusChip(ph) + '<div style="margin-top:4px"><span class="prog"><i style="width:' + Math.round(ph.received / ph.chunks * 100) + '%"></i></span>' + ph.received + '/' + ph.chunks + ' chunks</div><div style="margin-top:4px">' + ph.via + '</div></div></div>' : "";
+          return '<tr' + (r.tier === "QUEUED" ? ' class="held"' : "") + '>' +
+            '<td class="mono">' + r.id + '</td>' +
+            '<td><span class="agency-dot" style="background:' + D.AGENCIES[r.agency].color + ';display:inline-block;margin-right:6px;vertical-align:-1px;"></span><span class="mono">' + r.from + '</span></td>' +
+            '<td>' + r.type + '</td><td class="mono">' + r.zone + '</td>' +
+            '<td style="max-width:46ch;">' + r.text + img + '</td>' +
+            '<td><span class="chip ' + tierCls(r.tier) + '">' + r.tier + '</span><div class="mono" style="margin-top:4px;color:var(--text-dim);">' + (r.bytes >= 1024 ? (r.bytes / 1024).toFixed(1) + ' KB' : r.bytes + ' B') + '</div></td>' +
+            '<td class="mono">' + r.ageMin + ' min</td>' +
+            (CONTROL ? '<td>' + (r.ack ? '<span class="chip chip-ok">ACK sent</span>' : '<button class="btn-secondary btn-xs" data-ack="' + r.id + '">Acknowledge</button>') + '</td>' : "") +
+            '</tr>';
+        }).join("");
+        document.querySelectorAll("[data-ph]").forEach(b => b.addEventListener("click", () => { const ph = D.PHOTOS.find(p => p.id === b.dataset.ph); const z = D.ZONES.find(z => z.id === ph.zone); RLAuth.openPhotoViewer(ph, { zoneName: z && z.name, agency: D.AGENCIES[ph.from.split("-")[0]] ? D.AGENCIES[ph.from.split("-")[0]].label : "" }); }));
+        document.querySelectorAll("[data-ack]").forEach(b => b.addEventListener("click", () => {
+          const r = reports.find(x => x.id === b.dataset.ack); r.ack = true;
+          RLAuth.toast("ACK (24 B) queued for " + r.from + " — takes the same ladder back: SAT → LoRa → mesh.", { type: "success" });
+          render();
+        }));
+      }
+      render();
+    })();
+  </script>
+</body>
+</html>

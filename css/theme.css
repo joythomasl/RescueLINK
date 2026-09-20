@@ -1,0 +1,433 @@
+/* ============================================================
+   RescueLINK — Design System
+   Indian government operations console: white + gold, with
+   colour reserved for status (severity, alerts) and agency
+   identity rather than page chrome. Agency hues were validated
+   for colour-vision deficiency on the white surface; map markers
+   also carry the agency initial so identity never rests on colour.
+   ============================================================ */
+
+:root {
+  --navy-900:#EEF1F5;   /* page background — light gray */
+  --navy-800:#FFFFFF;   /* panel / card background — white */
+  --navy-700:#F5F6F8;   /* raised surface — inputs, buttons, chip fills */
+  --navy-600:#D6DBE1;   /* borders, dividers, scrollbar thumb */
+  --gold-500:#B8891A;
+  --gold-400:#CE9F2E;
+  --gold-100:#FBF0D2;   /* pale gold wash — used only over dark overlays */
+  --gold-700:#8A6710;   /* deep gold — text/headings on light surfaces */
+  --text:#20242B;
+  --text-dim:#6A6E76;
+  --p0:#C4291F;
+  --p1:#B96400;
+  --p2:#9A7A00;
+  --p3:#1F7A5C;
+  --emergency:#C1121F;
+  --blue-accent:#5E8FBF;   /* the one permitted "minimal light blue" */
+  --blue-accent-dark:#2E5C82;
+  --overlay-dark: 20,22,26; /* neutral dark rgb triplet for on-image chips/scrims — no blue cast */
+
+  /* Agency identity (NDRF orange, SDRF blue, police khaki, fire crimson, volunteers violet) */
+  --ag-ndrf:#d9581f;
+  --ag-sdrf:#2a6fd6;
+  --ag-pol:#8a6d10;
+  --ag-fire:#c93d7a;
+  --ag-vol:#5b4bd6;
+  --link:#1F7A5C;          /* live Wi-Fi Aware link — same green as "good" status */
+  --water:#6fa3c2;
+  --font-mono:'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+
+  --accent: var(--gold-500);
+  --accent-hover: var(--gold-400);
+  --bg-page: var(--navy-900);
+  --bg-panel: var(--navy-800);
+  --bg-raised: var(--navy-700);
+  --border-color: var(--navy-600);
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --shadow-soft: 0 2px 8px rgba(16,24,40,.10);
+  --transition-fast: 150ms ease;
+  --transition-mode: 400ms ease;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg-page);
+  color: var(--text);
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  transition: background var(--transition-mode), color var(--transition-mode);
+}
+
+body.emergency-active {
+  background: #F3E9E9;   /* faint red cast on the page ground; panels stay white and legible */
+}
+body.emergency-active .app-header { border-bottom-color: var(--emergency); }
+.mono { font-family: var(--font-mono); font-size: 12px; }
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+a { color: var(--gold-700); }
+button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--gold-500); outline-offset: 2px; }
+
+/* ---------- Header ---------- */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  height: 60px;
+  background: var(--bg-panel);
+  border-bottom: 3px solid var(--gold-500);
+  position: relative;
+  z-index: 500;
+  transition: border-color var(--transition-mode);
+}
+
+body.emergency-active .app-header {
+  border-bottom-color: var(--emergency);
+}
+
+.app-header .wordmark {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: 0.5px;
+  color: var(--text);
+}
+
+.app-header .wordmark .crest-svg {
+  width: 32px;
+  height: 32px;
+  color: var(--gold-500);
+  flex: none;
+}
+
+/* Centre slot: elapsed-time clock + command-link badge (filled by page scripts) */
+.header-center { display: flex; align-items: center; gap: 22px; margin-left: auto; margin-right: 22px; }
+.clocks { display: flex; gap: 18px; }
+.clock { display: flex; flex-direction: column; align-items: flex-end; }
+.clock .v { font-size: 22px; font-weight: 800; line-height: 1; letter-spacing: .01em; }
+.clock .l { font-size: 10px; color: var(--text-dim); letter-spacing: .08em; text-transform: uppercase; margin-top: 2px; }
+.clock.gold .v { color: var(--gold-700); }
+.clock.gold.red .v { color: var(--p0); }
+.uplink { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--navy-700); font-size: 12px; white-space: nowrap; }
+.uplink .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--p3); box-shadow: 0 0 0 3px rgba(31,122,92,.15); }
+.uplink.sat .dot { background: var(--p1); box-shadow: 0 0 0 3px rgba(185,100,0,.15); }
+.uplink b { font-weight: 700; }
+
+.app-header .wordmark small {
+  display: block;
+  color: var(--text-dim);
+  font-weight: 400;
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.role-badge {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  border: 1px solid var(--gold-500);
+  color: var(--gold-700);
+  background: rgba(184,137,26,0.10);
+}
+
+.role-badge.observer {
+  border-color: var(--blue-accent);
+  color: var(--blue-accent-dark);
+  background: rgba(94,143,191,0.10);
+}
+
+/* ---------- Buttons ---------- */
+button, .btn {
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  min-height: 44px;
+  padding: 0 18px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+  border: 1px solid transparent;
+}
+
+.btn-primary {
+  background: var(--gold-500);
+  color: var(--text);
+  border-color: var(--gold-500);
+}
+.btn-primary:hover { background: var(--gold-400); border-color: var(--gold-400); }
+.btn-primary:active { transform: scale(0.98); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-secondary {
+  background: var(--navy-700);
+  color: var(--text);
+  border-color: var(--gold-500);
+}
+.btn-secondary:hover { background: var(--navy-600); }
+
+.btn-danger {
+  background: transparent;
+  color: var(--p0);
+  border-color: var(--p0);
+}
+.btn-danger:hover { background: rgba(196,41,31,0.08); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-dim);
+  border-color: var(--border-color);
+}
+.btn-ghost:hover { color: var(--text); border-color: var(--text-dim); }
+
+.btn-sm {
+  min-height: 32px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+
+.btn-xs {
+  min-height: 26px;
+  padding: 0 9px;
+  font-size: 11px;
+}
+
+.btn-block { width: 100%; }
+
+/* A control the current role may not use. Stays clickable on purpose:
+   the click returns a 403 toast, showing that authority is server-side. */
+button.locked { opacity: .55; border-style: dashed; }
+button.active { background: rgba(184,137,26,0.14); border-color: var(--gold-500); color: var(--gold-700); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ---------- Cards / Panels ---------- */
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+}
+
+.panel-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--gold-700);
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ---------- Severity chips ---------- */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+
+.chip-p0 { background: rgba(196,41,31,0.10); color: var(--p0); border: 1px solid var(--p0); }
+.chip-p1 { background: rgba(185,100,0,0.10); color: var(--p1); border: 1px solid var(--p1); }
+.chip-p2 { background: rgba(154,122,0,0.12); color: var(--p2); border: 1px solid var(--p2); }
+.chip-p3 { background: rgba(31,122,92,0.10); color: var(--p3); border: 1px solid var(--p3); }
+.chip-aged { background: rgba(91,100,114,0.08); color: var(--text-dim); border: 1px dashed var(--text-dim); }
+.chip-mismatch { background: rgba(196,41,31,0.12); color: var(--p0); border: 1px solid var(--p0); }
+.chip-ok { background: rgba(31,122,92,0.10); color: var(--p3); border: 1px solid var(--p3); }
+.chip-gold { background: rgba(184,137,26,0.10); color: var(--gold-700); border: 1px solid var(--gold-500); }
+
+/* ---------- Status chips (reports) ---------- */
+.status-chip {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--navy-700);
+  border: 1px solid var(--border-color);
+  color: var(--text-dim);
+}
+.status-chip.reported { color: var(--p2); border-color: var(--p2); }
+.status-chip.triaged { color: var(--p1); border-color: var(--p1); }
+.status-chip.assigned { color: var(--blue-accent-dark); border-color: var(--blue-accent); }
+.status-chip.in-progress { color: var(--blue-accent-dark); border-color: var(--blue-accent); }
+.status-chip.pending-verification { color: var(--gold-700); border-color: var(--gold-500); }
+.status-chip.closed { color: var(--p3); border-color: var(--p3); }
+.status-chip.reopened { color: var(--p0); border-color: var(--p0); background: rgba(196,41,31,0.10); }
+
+/* ---------- Toast ---------- */
+#toast-stack {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 3000;
+}
+
+.toast {
+  min-width: 260px;
+  max-width: 380px;
+  background: var(--bg-raised);
+  border: 1px solid var(--gold-500);
+  border-left: 4px solid var(--gold-500);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  box-shadow: var(--shadow-soft);
+  font-size: 13px;
+  animation: toast-in 200ms ease;
+}
+.toast.warn { border-left-color: var(--p1); }
+.toast.error { border-left-color: var(--p0); }
+.toast.success { border-left-color: var(--p3); }
+.toast strong { display:block; margin-bottom: 2px; color: var(--gold-700); }
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.toast.hide { animation: toast-out 200ms ease forwards; }
+@keyframes toast-out { to { opacity: 0; transform: translateX(20px); } }
+
+/* ---------- Modal ---------- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(var(--overlay-dark),0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 4000;
+  animation: fade-in 150ms ease;
+}
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+.modal {
+  background: var(--bg-panel);
+  border: 1px solid var(--gold-500);
+  border-radius: var(--radius-lg);
+  width: 420px;
+  max-width: calc(100vw - 40px);
+  max-height: calc(100vh - 60px);
+  overflow-y: auto;
+  box-shadow: 0 8px 30px rgba(16,24,40,.22);
+}
+.modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+  font-weight: 700;
+  color: var(--gold-700);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.modal-body { padding: 16px 20px; }
+.modal-footer {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 18px;
+  min-height: auto;
+  padding: 4px 8px;
+}
+
+/* ---------- Form controls ---------- */
+label { font-size: 12px; color: var(--text-dim); display: block; margin-bottom: 5px; }
+input, select, textarea {
+  width: 100%;
+  background: var(--navy-900);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  margin-bottom: 14px;
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--gold-500);
+}
+input[type="range"] { padding: 0; margin-bottom: 6px; }
+
+/* Compact controls for dense dashboard panels */
+.sm-input, select.sm-input, textarea.sm-input {
+  padding: 6px 8px;
+  font-size: 12.5px;
+  margin-bottom: 0;
+  width: 100%;
+}
+select.sm-input { width: auto; flex: 1; min-width: 0; }
+textarea.sm-input { resize: vertical; min-height: 58px; line-height: 1.4; }
+.inline-form { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+
+/* ---------- Scrollbars ---------- */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--navy-900); }
+::-webkit-scrollbar-thumb { background: var(--navy-600); border-radius: 4px; }
+
+/* ---------- Emergency banner ---------- */
+#emergency-banner {
+  display: none;
+  width: 100%;
+  background: var(--emergency);
+  color: #fff;
+  padding: 7px 20px;
+  font-weight: 600;
+  font-size: 13px;
+  align-items: center;
+  gap: 14px;
+}
+#emergency-banner.show { display: flex; }
+#emergency-banner .eb-tag {
+  font-weight: 800; letter-spacing: .14em; text-transform: uppercase; font-size: 11px;
+  padding: 2px 8px; border: 1px solid rgba(255,255,255,.55); border-radius: 4px;
+}
+@keyframes pulse-banner {
+  0%, 100% { background: var(--emergency); }
+  50% { background: #8a0d17; }
+}
+
+/* ---------- Utility ---------- */
+.text-dim { color: var(--text-dim); }
+.mb-0 { margin-bottom: 0; }
+.hidden { display: none !important; }
+.flex { display: flex; }
+.flex-col { display: flex; flex-direction: column; }
+.gap-8 { gap: 8px; }
+.gap-12 { gap: 12px; }
