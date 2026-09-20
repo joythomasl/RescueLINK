@@ -171,50 +171,43 @@
   // ============================================================
   const S = [];
 
-  // ---------- 1. Leaderless vs Group Owner ----------
+  // ---------- 1. Leaderless cluster ----------
   S.push({
-    id: "leaderless", group: "Tier 1 — Wi-Fi Aware", tier: "Tier 1 · why Wi-Fi Aware", title: "Leaderless cluster vs. a Group Owner",
-    blurb: "The same seven phones, two ways of connecting them. Wi-Fi Direct needs a Group Owner; Wi-Fi Aware needs nobody. Click a phone to knock it out and watch what the cluster does.",
+    id: "leaderless", group: "Tier 1 — Wi-Fi Aware", tier: "Tier 1 · leaderless cluster", title: "A cluster with nobody in charge",
+    blurb: "Seven phones discover each other over Wi-Fi Aware and link to every peer in range. There is no owner, no coordinator, no election. Knock phones out and the rest keep talking through whatever paths remain.",
     hint: "Click any phone to knock it out. Click again to bring it back.",
-    intro: "Position updates (small green packets) flood through the cluster every couple of seconds. <b>Start</b> to compare the two connection models.",
+    intro: "Position updates (small green packets) flood through the cluster every couple of seconds. <b>Start</b> to see how the cluster copes with losing phones.",
     controls: [
-      { id: "mode", type: "select", label: "Connection model", value: "direct", options: [["direct", "Wi-Fi Direct — one Group Owner"], ["nan", "Wi-Fi Aware — leaderless (chosen)"]], desc: "Wi-Fi Direct: every client talks through the owner. Wi-Fi Aware: publish/subscribe, any pair within ~150 m links." },
+      { id: "range", type: "range", label: "Wi-Fi Aware range", min: 180, max: 340, step: 10, value: 310, unit: " px", desc: "~100–200 m per hop in the field, depending on obstructions. Shorter range = sparser mesh." },
       { id: "reset", type: "buttons", buttons: [{ id: "revive", label: "Bring everyone back" }] }
     ],
     st: {}, setup() {
-      const s = this.st; s.go = "P1"; s.reelect = null; s.outage = 0; s.delivered = 0; s.emit = 0; s.alive = 7; s.reach = 7;
-      ring(480, 290, 7, 190).forEach((p, i) => node("P" + (i + 1), p[0], p[1], "phone", "P" + (i + 1), { battery: 40 + i * 8 }));
+      const s = this.st; s.delivered = 0; s.emit = 0; s.alive = 7; s.reach = 7; s.outage = 0;
+      ring(480, 290, 7, 190).forEach((p, i) => node("P" + (i + 1), p[0], p[1], "phone", "P" + (i + 1)));
       this.rebuild();
     },
-    rebuild() {
-      const s = this.st; E.links.length = 0; const ids = E.nodes.map(n => n.id);
-      if (E.C.mode === "direct") {
-        E.nodes.forEach(n => { n.badge = ""; n.ring = null; });
-        if (s.go && byId[s.go].alive) { const go = byId[s.go]; go.badge = "GROUP OWNER"; go.badgeColor = css("--amber"); ids.forEach(id => { if (id !== s.go) link(s.go, id, "wifi"); }); }
-      } else { E.nodes.forEach(n => { n.badge = ""; }); meshByRange(ids, 310, "wifi"); }
-    },
-    onControl(id, v) { if (id === "mode") { this.st.reelect = null; this.rebuild(); log("Connection model → " + (v === "direct" ? "Wi-Fi Direct (Group Owner P-star)" : "Wi-Fi Aware (leaderless mesh)"), "sys"); } if (id === "revive") { E.nodes.forEach(n => revive(n.id)); this.rebuild(); log("All phones back online", "ok"); } },
+    rebuild() { E.links.length = 0; meshByRange(E.nodes.map(n => n.id), E.C.range || 310, "wifi"); },
+    onControl(id) { if (id === "range") { this.rebuild(); } if (id === "revive") { E.nodes.forEach(n => revive(n.id)); this.rebuild(); log("All phones back online", "ok"); } },
     onNodeClick(n) {
-      const s = this.st;
-      if (n.alive) { kill(n.id); log(n.id + " knocked out", "bad"); if (E.C.mode === "direct" && n.id === s.go) { s.reelect = E.t + 3000; E.links.forEach(l => { l.up = false; }); log("Group Owner lost — every client link is gone. Re-election in 3.0 s…", "bad"); } }
-      else { revive(n.id); log(n.id + " back online", "ok"); if (E.C.mode === "direct" && !s.reelect && byId[s.go].alive) this.rebuild(); }
-      if (E.C.mode === "nan") this.rebuild();
+      if (n.alive) { kill(n.id); log(n.id + " knocked out — only its own links disappear", "bad"); }
+      else { revive(n.id); log(n.id + " back online — rediscovered by its neighbours, no priming needed", "ok"); }
+      this.rebuild();
     },
     tick(dt) {
       const s = this.st;
-      if (s.reelect) { s.outage += dt; if (E.t >= s.reelect) { s.reelect = null; const c = E.nodes.filter(n => n.alive).sort((a, b) => b.battery - a.battery)[0]; if (c) { s.go = c.id; this.rebuild(); log("Election done — " + c.id + " is the new Group Owner. Clients reconnect.", "warn"); } } }
       s.emit += dt; if (s.emit > 1800) { s.emit = 0; const alive = E.nodes.filter(n => n.alive); const src = alive[Math.floor(Math.random() * alive.length)]; if (src) { const pid = Math.random().toString(36).slice(2, 8); flood(src.id, null, { color: css("--green"), r: 4, payload: { pid, ttl: 4 } }); } }
-      const alive = E.nodes.filter(n => n.alive); const from = alive.find(n => n.id !== s.go) || alive[0]; s.reach = from ? reachable(from.id).size : 0; s.alive = alive.length;
+      const alive = E.nodes.filter(n => n.alive); s.alive = alive.length;
+      const sizes = alive.map(n => reachable(n.id).size); s.reach = sizes.length ? Math.max(...sizes) : 0;
+      if (alive.length && s.reach < alive.length) s.outage += dt;
     },
     onArrive(n, p) { const { pid, ttl } = p.payload; if (!pid || n.seen.has(pid)) return; n.seen.add(pid); this.st.delivered++; if (ttl > 0) flood(n.id, p.from, { color: css("--green"), r: 4, payload: { pid, ttl: ttl - 1 } }); },
-    metrics() { const s = this.st; return [{ label: "phones alive", value: s.alive + " / 7" }, { label: "reachable from a client", value: s.reach + " / " + s.alive, cls: s.reach < s.alive ? "bad" : "good" }, { label: "cluster outage", value: fmtT(s.outage), cls: s.outage ? "bad" : "good" }, { label: "beacons delivered", value: s.delivered }]; },
+    metrics() { const s = this.st; return [{ label: "phones alive", value: s.alive + " / 7" }, { label: "largest connected group", value: s.reach + " / " + s.alive, cls: s.reach < s.alive ? "bad" : "good" }, { label: "time partitioned", value: fmtT(s.outage), cls: s.outage ? "warn" : "good" }, { label: "beacons delivered", value: s.delivered }]; },
     steps: [
-      { text: "<b>Wi-Fi Direct.</b> P1 is the Group Owner — every other phone is a client of P1, so every packet goes through it. This is the topology Meshrabiya automates under its virtual IP layer.", run() { setControl("mode", "direct"); E.sc.rebuild(); } },
-      { text: "<b>Knock out the owner.</b> P1 goes down and every client link goes with it. Nobody can talk until an election finishes — about 3 s here, longer in practice. The outage clock is running.", run() { E.sc.onNodeClick(byId.P1); } },
-      { text: "<b>Recovered — with a new owner.</b> The highest-battery phone became Group Owner and the clients reconnected. It works, but the cluster has a single point of failure again, and the same thing happens next time.", run() { } },
-      { text: "<b>Switch to Wi-Fi Aware.</b> Same seven phones. No owner: each pair within range links directly through publish/subscribe discovery. No QR codes, no BLE priming.", run() { E.nodes.forEach(n => revive(n.id)); setControl("mode", "nan"); E.sc.rebuild(); log("Wi-Fi Aware: leaderless mesh formed by symmetric discovery", "ok"); } },
-      { text: "<b>Knock out P1 again.</b> Only P1's own links disappear. Beacons keep flooding through the rest; the outage clock does not move.", run() { E.sc.onNodeClick(byId.P1); } },
-      { text: "<b>Take out two more.</b> P3 and P5 drop. The cluster stays connected through the remaining paths — this is what \"if one device drops, the network must not collapse\" looks like. Try clicking phones yourself.", run() { E.sc.onNodeClick(byId.P3); E.sc.onNodeClick(byId.P5); } }
+      { text: "<b>Discovery, not connection.</b> Each phone publishes a service name and subscribes to the same one. Any pair within range gets a link — no access point, no owner, no QR codes or BLE priming.", run() { } },
+      { text: "<b>Knock out P1.</b> Only P1's own links vanish. Beacons keep flooding through everyone else; nothing waits for an election.", run() { E.sc.onNodeClick(byId.P1); } },
+      { text: "<b>Take out two more.</b> P3 and P5 drop. The cluster stays connected through the remaining paths — this is what \"if one device drops, the network must not collapse\" looks like.", run() { E.sc.onNodeClick(byId.P3); E.sc.onNodeClick(byId.P5); } },
+      { text: "<b>Range is the real limit.</b> Shorten the Wi-Fi Aware range and the mesh thins out until it splits — a partition, not a collapse: each side keeps working (see the partition scenario). The fix in the field is hop density and elevation, not radio power.", run() { setControl("range", 200); E.sc.rebuild(); } },
+      { text: "<b>Recovery is automatic.</b> Bring the phones back: they are rediscovered by their neighbours and rejoin without any manual step. Try clicking phones yourself.", run() { setControl("range", 310); E.sc.onControl("revive"); } }
     ]
   });
 
