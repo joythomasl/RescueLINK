@@ -39,7 +39,7 @@
 
   function logout() {
     ["sm_role", "sm_email", "sm_name", EMERGENCY_KEY, EMERGENCY_START_KEY].forEach(k => sessionStorage.removeItem(k));
-    window.location.href = "login.html";
+    window.location.href = "index.html";
   }
 
   function getRole() { return sessionStorage.getItem("sm_role"); }
@@ -47,7 +47,7 @@
 
   function requireRole(expected) {
     const role = getRole();
-    if (!role) { window.location.href = "login.html"; return null; }
+    if (!role) { window.location.href = "index.html"; return null; }
     if (expected && role !== expected) {
       window.location.href = role === "control" ? "control.html" : "view.html";
       return null;
